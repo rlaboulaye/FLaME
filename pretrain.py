@@ -4,16 +4,13 @@ import json
 import argparse
 
 import numpy as np
-from scipy.stats import mode
 import torch
 from torch import nn
 from torch.optim import Adam
 
-from utils import set_seed, get_device, validate_against_schema, get_iterator, verbose_print
-from logger import Logger
-from data.text_encoder import TextEncoder
-from data.data_utils import get_dataloaders
-from model.transformer_models import SingleHeadModel
+from utils import set_seed, get_device, validate_against_schema, get_iterator, verbose_print, Logger
+from data import TextEncoder, get_dataloaders
+from models.transformer_models import SingleHeadModel
 from evaluate import Evaluator
 
 
@@ -56,7 +53,7 @@ def run_epoch(train_dataloader, validation_dataloader, model, optimizer, scores_
 
     return train_losses, train_accuracies, validation_losses, validation_accuracies
 
-def train(train_dataloader, validation_dataloader, model, model_opt, logger, config, evaluator):
+def train(train_dataloader, validation_dataloader, model, model_opt, logger, hyperparams, evaluator):
 
     min_loss = float('inf')
     weight_directory = os.path.join('weights', logger.task_name)
@@ -66,7 +63,7 @@ def train(train_dataloader, validation_dataloader, model, model_opt, logger, con
     lm_head_path = os.path.join(weight_directory, 'lm_head.pth')
     task_head_path = os.path.join(weight_directory, 'task_head.pth')
 
-    for epoch in range(config["n_iter"]):
+    for epoch in range(hyperparams["n_iter"]):
 
         verbose_print(verbose, 'Running epoch {}'.format(epoch))
 
@@ -176,8 +173,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--verbose', action='store_true')
     parser.add_argument('--hyperparams', type=str, default='hyperparams/pretrain.json')
-    parser.add_argument('--train_file', type=str, default='/users/data/toronto_book_corpus/books_in_sentences.txt')
-    parser.add_argument('--test_file', type=str, default=None)
+    parser.add_argument('--data_file', type=str, default='/users/data/toronto_book_corpus/abridged_books_in_sentences.txt')
 
     args = parser.parse_args()
 
@@ -185,46 +181,45 @@ if __name__ == '__main__':
     if verbose:
         verbose_print(verbose, vars(args))
 
-    config_path = args.config_path
-    with open(config_path, 'r') as config_file:
-        config = json.load(config_file)
-    validate_against_schema(config, schema_path='schema/pretrain_schema.json')
+    hyperparams_path = args.hyperparams
+    with open(hyperparams_path, 'r') as hyperparams_file:
+        hyperparams = json.load(hyperparams_file)
+    validate_against_schema(hyperparams, schema_path='schema/pretrain_schema.json')
 
-    train_file_path = args.train_file
-    test_file_path = args.test_file
+    data_file_path = args.data_file
 
-    set_seed(config['seed'])
+    set_seed(hyperparams['seed'])
     device = get_device(verbose)
 
-    text_encoder = TextEncoder(config['encoder_path'], config['bpe_path'])
-    train_dataloader, validation_dataloader, test_dataloader, document_structure = get_dataloaders(task, text_encoder, config['test_split'], config['validation_split'], config['batch_size'], device, verbose, train_file_path, test_file_path, sequence_dim=config['sequence_dim'])
+    text_encoder = TextEncoder(hyperparams['encoder_path'], hyperparams['bpe_path'])
+    train_dataloader, validation_dataloader, test_dataloader = get_dataloaders(data_file_path, text_encoder, hyperparams['test_split'], hyperparams['validation_split'], hyperparams['batch_size'], device, verbose, sequence_dim=hyperparams['sequence_dim'])
 
-    max_position_encoding = train_dataloader.dataset.max_position_encoding
-    sequence_dim = train_dataloader.dataset.sequence_dim
-    vocab_size = len(text_encoder.encoder) + max_position_encoding
-    sh_model = SingleHeadModel(config, vocab_size, sequence_dim)
+    # max_position_encoding = train_dataloader.dataset.max_position_encoding
+    # sequence_dim = train_dataloader.dataset.sequence_dim
+    # vocab_size = len(text_encoder.encoder) + max_position_encoding
+    # sh_model = SingleHeadModel(hyperparams, vocab_size, sequence_dim)
 
-    load_openai_pretrained_model(sh_model.transformer, n_ctx=sequence_dim, n_special=2, verbose=verbose)
+    # load_openai_pretrained_model(sh_model.transformer, n_ctx=sequence_dim, n_special=2, verbose=verbose)
 
-    lm_criterion = nn.CrossEntropyLoss(reduction='none')
+    # lm_criterion = nn.CrossEntropyLoss(reduction='none')
 
-    model_opt = Adam(dh_model.parameters(),
-                     lr=config['lr'],
-                     betas=(config['b1'], config['b2']),
-                     eps=config['eps'])
+    # model_opt = Adam(dh_model.parameters(),
+    #                  lr=hyperparams['lr'],
+    #                  betas=(hyperparams['b1'], hyperparams['b2']),
+    #                  eps=hyperparams['eps'])
 
-    dh_model.to(device)
+    # dh_model.to(device)
 
-    task_file_name = os.path.basename(args.task_path)
-    task_name = os.path.join(os.path.splitext(task_file_name)[0],
-                             '{}tr__{}val__{}te'.format(train_dataloader.dataset.instances.shape[0],
-                                                        validation_dataloader.dataset.instances.shape[0],
-                                                        test_dataloader.dataset.instances.shape[0])
-                             )
-    targets = np.concatenate([train_dataloader.dataset.targets, validation_dataloader.dataset.targets, test_dataloader.dataset.targets])
-    default_accuracy = float(mode(targets).count[0]) / float(len(targets))
-    scores_per_epoch = config['scores_per_epoch']
-    logger = Logger(config, task_name, scores_per_epoch, default_accuracy)
+    # task_file_name = os.path.basename(args.task_path)
+    # task_name = os.path.join(os.path.splitext(task_file_name)[0],
+    #                          '{}tr__{}val__{}te'.format(train_dataloader.dataset.instances.shape[0],
+    #                                                     validation_dataloader.dataset.instances.shape[0],
+    #                                                     test_dataloader.dataset.instances.shape[0])
+    #                          )
+    # targets = np.concatenate([train_dataloader.dataset.targets, validation_dataloader.dataset.targets, test_dataloader.dataset.targets])
+    # default_accuracy = float(mode(targets).count[0]) / float(len(targets))
+    # scores_per_epoch = hyperparams['scores_per_epoch']
+    # logger = Logger(hyperparams, task_name, scores_per_epoch, default_accuracy)
 
-    train(train_dataloader, validation_dataloader, dh_model, model_opt, logger, config, evaluator)
-    test(test_dataloader, dh_model, logger, evaluator)
+    # train(train_dataloader, validation_dataloader, dh_model, model_opt, logger, hyperparams, evaluator)
+    # test(test_dataloader, dh_model, logger, evaluator)
