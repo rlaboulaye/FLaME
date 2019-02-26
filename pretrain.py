@@ -16,93 +16,77 @@ from evaluate import Evaluator
 
 def score(dataloader, model, verbose, evaluator):
     losses = []
-    accuracies = []
     with torch.no_grad():
         model.eval()
-        for x, m, y in get_iterator(dataloader, verbose):
-            lm_logits, task_logits = model(x)
-            double_head_loss, task_loss, lm_loss = evaluator.compute_double_head_loss(x, y, m, lm_logits, task_logits)
-            accuracy = evaluator.compute_score(y, task_logits)
-            losses.extend([double_head_loss.cpu().item()] * x.shape[0])
-            accuracies.extend([accuracy.cpu().item()] * x.shape[0])
-    return np.mean(losses), np.mean(accuracies)
+        for x, m in get_iterator(dataloader, verbose):
+            lm_logits = model(x)
+            loss = evaluator.compute_loss(x, m, lm_logits)
+            losses.extend([loss.cpu().item()] * x.shape[0])
+    return np.mean(losses)
 
 def run_epoch(train_dataloader, validation_dataloader, model, optimizer, scores_per_epoch, verbose, evaluator):
     train_losses = []
-    train_accuracies = []
     validation_losses = []
-    validation_accuracies = []
 
     model.train()
     n_updates = 0
-    for x, m, y in get_iterator(train_dataloader, verbose):
-        lm_logits, task_logits = model(x)
-        double_head_loss, task_loss, lm_loss = evaluator.compute_double_head_loss(x, y, m, lm_logits, task_logits)
-        double_head_loss.backward()
+    for x, m in get_iterator(train_dataloader, verbose):
+        lm_logits = model(x)
+        loss = evaluator.compute_loss(x, m, lm_logits)
+        loss.backward()
         optimizer.step()
         optimizer.zero_grad()
 
         n_updates += 1
         if n_updates % math.ceil(float(len(train_dataloader)) / float(scores_per_epoch)) == 0 or n_updates == len(train_dataloader):
-            train_loss, train_accuracy = score(train_dataloader, model, verbose=verbose, evaluator=evaluator)
-            validation_loss, validation_accuracy = score(validation_dataloader, model, verbose=verbose, evaluator=evaluator)
+            train_loss = score(train_dataloader, model, verbose=verbose, evaluator=evaluator)
+            validation_loss = score(validation_dataloader, model, verbose=verbose, evaluator=evaluator)
             train_losses.append(train_loss)
-            train_accuracies.append(train_accuracy)
             validation_losses.append(validation_loss)
-            validation_accuracies.append(validation_accuracy)
 
-    return train_losses, train_accuracies, validation_losses, validation_accuracies
+    return train_losses, validation_losses
 
 def train(train_dataloader, validation_dataloader, model, model_opt, logger, hyperparams, evaluator):
 
     min_loss = float('inf')
-    weight_directory = os.path.join('weights', logger.task_name)
-    if not os.path.exists(weight_directory):
-        os.makedirs(weight_directory)
-    transformer_path = os.path.join(weight_directory, 'transformer.pth')
-    lm_head_path = os.path.join(weight_directory, 'lm_head.pth')
-    task_head_path = os.path.join(weight_directory, 'task_head.pth')
+    # params_directory = os.path.join('params', logger.task_name)
+    # if not os.path.exists(params_directory):
+    #     os.makedirs(params_directory)
+    # transformer_path = os.path.join(params_directory, 'transformer.pth')
+    # lm_head_path = os.path.join(params_directory, 'lm_head.pth')
 
     for epoch in range(hyperparams["n_iter"]):
 
         verbose_print(verbose, 'Running epoch {}'.format(epoch))
 
-        train_losses, train_accuracies, validation_losses, validation_accuracies = run_epoch(train_dataloader, validation_dataloader, model, model_opt, logger.results['scores_per_epoch'], verbose, evaluator)
+        train_losses, validation_losses = run_epoch(train_dataloader, validation_dataloader, model, model_opt, logger.results['scores_per_epoch'], verbose, evaluator)
         logger.results['train_losses'].extend(train_losses)
-        logger.results['train_accuracies'].extend(train_accuracies)
         logger.results['validation_losses'].extend(validation_losses)
-        logger.results['validation_accuracies'].extend(validation_accuracies)
 
         logger.log()
         logger.plot()
 
         verbose_print(verbose, 'Train Loss: {}'.format(train_losses))
-        verbose_print(verbose, 'Train Accuracy: {}'.format(train_accuracies))
         verbose_print(verbose, 'Validation Loss: {}'.format(validation_losses))
-        verbose_print(verbose, 'Validation Accuracy: {}'.format(validation_accuracies))
 
         new_loss = np.mean(validation_losses)
         if new_loss < min_loss:
             min_loss = np.mean(validation_losses)
-            torch.save(model.transformer.state_dict(), transformer_path)
-            torch.save(model.lm_head.state_dict(), lm_head_path)
-            torch.save(model.task_head.state_dict(), task_head_path)
+            # torch.save(model.transformer.state_dict(), transformer_path)
+            # torch.save(model.lm_head.state_dict(), lm_head_path)
 
-    if min_loss != new_loss:
-        model.transformer.load_state_dict(torch.load(transformer_path))
-        model.lm_head.load_state_dict(torch.load(lm_head_path))
-        model.task_head.load_state_dict(torch.load(task_head_path))
+    # if min_loss != new_loss:
+    #     model.transformer.load_state_dict(torch.load(transformer_path))
+    #     model.lm_head.load_state_dict(torch.load(lm_head_path))
 
 def test(test_dataloader, model, logger, evaluator):
     verbose_print(verbose, 'Testing')
 
-    test_loss, test_accuracy = score(test_dataloader, model, verbose, evaluator)
+    test_loss = score(test_dataloader, model, verbose, evaluator)
     logger.results['test_loss'] = test_loss
-    logger.results['test_accuracy'] = test_accuracy
     logger.log()
 
     verbose_print(verbose, 'Test Loss: {}'.format(test_loss))
-    verbose_print(verbose, 'Test Accuracy: {}'.format(test_accuracy))
 
 def load_openai_pretrained_model(model, n_ctx=-1, n_special=-1, n_transfer=12,
         n_embd=768, path='./params/', verbose=True):
@@ -173,8 +157,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--verbose', action='store_true')
     parser.add_argument('--hyperparams', type=str, default='hyperparams/pretrain.json')
-    # parser.add_argument('--data_file', type=str, default='/users/data/toronto_book_corpus/abridged_books_in_sentences.txt')
-    parser.add_argument('--data_file', type=str, default='test.txt')
+    parser.add_argument('--data_file', type=str, default='/users/data/toronto_book_corpus/abridged_books_in_sentences.txt')
 
     args = parser.parse_args()
 
@@ -216,4 +199,4 @@ if __name__ == '__main__':
     logger = Logger(hyperparams, 'language_modeling', scores_per_epoch)
 
     train(train_dataloader, validation_dataloader, model, model_opt, logger, hyperparams, evaluator)
-    # test(test_dataloader, dh_model, logger, evaluator)
+    test(test_dataloader, model, logger, evaluator)

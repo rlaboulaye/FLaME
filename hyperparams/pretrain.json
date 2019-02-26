@@ -3,7 +3,7 @@
     "encoder_path": "params/encoder_bpe_40000.json",
     "bpe_path": "params/vocab_40000.bpe",
     "seed": 42,
-    "n_iter": 2,
+    "n_iter": 10,
     "scores_per_epoch": 3,
     "test_split": 0.2,
     "validation_split": 0.2,
@@ -19,5 +19,5 @@
     "b1": 0.9,
     "b2": 0.999,
     "eps": 1e-8,
-    "sequence_dim": 512
+    "sequence_dim": 128
 }
