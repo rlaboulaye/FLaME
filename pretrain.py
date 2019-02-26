@@ -104,12 +104,12 @@ def test(test_dataloader, model, logger, evaluator):
     verbose_print(verbose, 'Test Loss: {}'.format(test_loss))
     verbose_print(verbose, 'Test Accuracy: {}'.format(test_accuracy))
 
-def load_openai_pretrained_model(model, n_ctx=-1, n_special=-1, n_transfer=12, n_embd=768, path='./model_params/',
-        path_names='./', verbose=True):
+def load_openai_pretrained_model(model, n_ctx=-1, n_special=-1, n_transfer=12,
+        n_embd=768, path='./params/', verbose=True):
     import re
     # Load weights from TF model
     verbose_print(verbose, "Loading weights...")
-    names = json.load(open(path_names + 'parameters_names.json'))
+    names = json.load(open(path + 'parameters_names.json'))
     shapes = json.load(open(path + 'params_shapes.json'))
     offsets = np.cumsum([np.prod(shape) for shape in shapes])
     init_params = [np.load(path + 'params_{}.npy'.format(n)) for n in range(10)]
@@ -194,14 +194,14 @@ if __name__ == '__main__':
     text_encoder = TextEncoder(hyperparams['encoder_path'], hyperparams['bpe_path'])
     train_dataloader, validation_dataloader, test_dataloader = get_dataloaders(data_file_path, text_encoder, hyperparams['test_split'], hyperparams['validation_split'], hyperparams['batch_size'], device, verbose, sequence_dim=hyperparams['sequence_dim'])
 
-    # max_position_encoding = train_dataloader.dataset.max_position_encoding
-    # sequence_dim = train_dataloader.dataset.sequence_dim
-    # vocab_size = len(text_encoder.encoder) + max_position_encoding
-    # sh_model = SingleHeadModel(hyperparams, vocab_size, sequence_dim)
+    max_position_encoding = train_dataloader.dataset.max_position_encoding
+    sequence_dim = train_dataloader.dataset.sequence_dim
+    vocab_size = len(text_encoder.encoder) + max_position_encoding
+    sh_model = SingleHeadModel(hyperparams, vocab_size, sequence_dim)
 
-    # load_openai_pretrained_model(sh_model.transformer, n_ctx=sequence_dim, n_special=2, verbose=verbose)
+    load_openai_pretrained_model(sh_model.transformer, n_ctx=sequence_dim, n_special=2, verbose=verbose)
 
-    # lm_criterion = nn.CrossEntropyLoss(reduction='none')
+    lm_criterion = nn.CrossEntropyLoss(reduction='none')
 
     # model_opt = Adam(dh_model.parameters(),
     #                  lr=hyperparams['lr'],

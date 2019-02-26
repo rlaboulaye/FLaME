@@ -1,4 +1,5 @@
 import math
+import copy
 
 import torch
 from torch import nn
@@ -6,17 +7,6 @@ from torch import nn
 
 def gelu(x):
     return 0.5 * x * (1 + torch.tanh(math.sqrt(2 / math.pi) * (x + 0.044715 * torch.pow(x, 3))))
-
-
-def swish(x):
-    return x * torch.sigmoid(x)
-
-
-ACT_FNS = {
-    'relu': nn.ReLU,
-    'swish': swish,
-    'gelu': gelu
-}
 
 
 class Conv1D(nn.Module):
@@ -50,7 +40,7 @@ class MLP(nn.Module):
         nx = cfg['n_embd']
         self.c_fc = Conv1D(n_state, 1, nx)
         self.c_proj = Conv1D(nx, 1, n_state)
-        self.act = ACT_FNS[cfg['afn']]
+        self.act = gelu
         self.dropout = nn.Dropout(cfg['resid_pdrop'])
 
     def forward(self, x):
@@ -187,7 +177,7 @@ class SingleHeadModel(nn.Module):
     """ Transformer with language model head """
 
     def __init__(self, cfg, vocab=40990, sequence_dim=512):
-        super(DoubleHeadModel, self).__init__()
+        super(SingleHeadModel, self).__init__()
         self.transformer = Transformer(cfg, vocab=vocab, n_ctx=sequence_dim)
         self.lm_head = LanguageModelHead(self.transformer, cfg)
 

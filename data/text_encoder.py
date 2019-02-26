@@ -11,13 +11,10 @@ class TextEncoder(object):
         self.nlp = spacy.load('en', disable=['parser', 'tagger', 'ner', 'textcat'])
         self.encoder = json.load(open(encoder_path))
         self.start_token_ = '_start_'
-        self.delimeter_token_ = '_delimiter_'
         self.end_token_ = '_end_'
         self.encoder[self.start_token_] = len(self.encoder)
-        self.encoder[self.delimeter_token_] = len(self.encoder)
         self.encoder[self.end_token_] = len(self.encoder)
         self.start_token = self.encoder[self.start_token_]
-        self.delimeter_token = self.encoder[self.delimeter_token_]
         self.end_token = self.encoder[self.end_token_]
         self.decoder = {v:k for k,v in self.encoder.items()}
         merges = open(bpe_path, encoding='utf-8').read().split('\n')[1:-1]
