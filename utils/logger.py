@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 
 class Logger(object):
 
-	def __init__(self, config, task_name, scores_per_epoch=1, default_accuracy=.5):
+	def __init__(self, hyperparams, task_name, scores_per_epoch=1):
 		self.task_name = task_name
 		self.results_directory = os.path.join('results', self.task_name)
 		self.results = {
@@ -17,8 +17,7 @@ class Logger(object):
 			'test_loss': 0,
 			'test_accuracy': 0,
 			'scores_per_epoch': scores_per_epoch,
-			'default_accuracy': default_accuracy,
-			'config': config
+			'hyperparams': hyperparams
 		}
 		if not os.path.exists(self.results_directory):
 			os.makedirs(self.results_directory)
@@ -50,7 +49,6 @@ class Logger(object):
 		plt.ylabel('Accuracy')
 		plt.plot(self.results['train_accuracies'], label='train')
 		plt.plot(self.results['validation_accuracies'], label='validate')
-		plt.plot([self.results['default_accuracy']] * len(self.results['train_accuracies']), label='default')
 		plt.legend()
 		plt.savefig('{}/accuracy.png'.format(self.results_directory))
 		plt.close()

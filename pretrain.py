@@ -173,7 +173,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--verbose', action='store_true')
     parser.add_argument('--hyperparams', type=str, default='hyperparams/pretrain.json')
-    parser.add_argument('--data_file', type=str, default='/users/data/toronto_book_corpus/abridged_books_in_sentences.txt')
+    # parser.add_argument('--data_file', type=str, default='/users/data/toronto_book_corpus/abridged_books_in_sentences.txt')
+    parser.add_argument('--data_file', type=str, default='test.txt')
 
     args = parser.parse_args()
 
@@ -197,29 +198,21 @@ if __name__ == '__main__':
     max_position_encoding = train_dataloader.dataset.max_position_encoding
     sequence_dim = train_dataloader.dataset.sequence_dim
     vocab_size = len(text_encoder.encoder) + max_position_encoding
-    sh_model = SingleHeadModel(hyperparams, vocab_size, sequence_dim)
+    model = SingleHeadModel(hyperparams, vocab_size, sequence_dim)
 
-    load_openai_pretrained_model(sh_model.transformer, n_ctx=sequence_dim, n_special=2, verbose=verbose)
+    load_openai_pretrained_model(model.transformer, n_ctx=sequence_dim, n_special=2, verbose=verbose)
 
     lm_criterion = nn.CrossEntropyLoss(reduction='none')
 
-    # model_opt = Adam(dh_model.parameters(),
-    #                  lr=hyperparams['lr'],
-    #                  betas=(hyperparams['b1'], hyperparams['b2']),
-    #                  eps=hyperparams['eps'])
+    model_opt = Adam(model.parameters(),
+                     lr=hyperparams['lr'],
+                     betas=(hyperparams['b1'], hyperparams['b2']),
+                     eps=hyperparams['eps'])
 
-    # dh_model.to(device)
+    model.to(device)
 
-    # task_file_name = os.path.basename(args.task_path)
-    # task_name = os.path.join(os.path.splitext(task_file_name)[0],
-    #                          '{}tr__{}val__{}te'.format(train_dataloader.dataset.instances.shape[0],
-    #                                                     validation_dataloader.dataset.instances.shape[0],
-    #                                                     test_dataloader.dataset.instances.shape[0])
-    #                          )
-    # targets = np.concatenate([train_dataloader.dataset.targets, validation_dataloader.dataset.targets, test_dataloader.dataset.targets])
-    # default_accuracy = float(mode(targets).count[0]) / float(len(targets))
-    # scores_per_epoch = hyperparams['scores_per_epoch']
-    # logger = Logger(hyperparams, task_name, scores_per_epoch, default_accuracy)
+    scores_per_epoch = hyperparams['scores_per_epoch']
+    logger = Logger(hyperparams, 'language_modeling', scores_per_epoch)
 
     # train(train_dataloader, validation_dataloader, dh_model, model_opt, logger, hyperparams, evaluator)
     # test(test_dataloader, dh_model, logger, evaluator)
