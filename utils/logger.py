@@ -11,11 +11,8 @@ class Logger(object):
 		self.results_directory = os.path.join('results', self.task_name)
 		self.results = {
 			'train_losses': [],
-			'train_accuracies': [],
 			'validation_losses': [],
-			'validation_accuracies': [],
 			'test_loss': 0,
-			'test_accuracy': 0,
 			'scores_per_epoch': scores_per_epoch,
 			'hyperparams': hyperparams
 		}
@@ -41,14 +38,4 @@ class Logger(object):
 		plt.plot(self.results['validation_losses'], label='validate')
 		plt.legend()
 		plt.savefig('{}/loss.png'.format(self.results_directory))
-		plt.close()
-
-		plt.figure()
-		plt.title('Accuracy')
-		plt.xlabel('1/{} Epoch'.format(self.results['scores_per_epoch']))
-		plt.ylabel('Accuracy')
-		plt.plot(self.results['train_accuracies'], label='train')
-		plt.plot(self.results['validation_accuracies'], label='validate')
-		plt.legend()
-		plt.savefig('{}/accuracy.png'.format(self.results_directory))
 		plt.close()

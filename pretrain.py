@@ -203,6 +203,7 @@ if __name__ == '__main__':
     load_openai_pretrained_model(model.transformer, n_ctx=sequence_dim, n_special=2, verbose=verbose)
 
     lm_criterion = nn.CrossEntropyLoss(reduction='none')
+    evaluator = Evaluator(lm_criterion)
 
     model_opt = Adam(model.parameters(),
                      lr=hyperparams['lr'],
@@ -214,5 +215,5 @@ if __name__ == '__main__':
     scores_per_epoch = hyperparams['scores_per_epoch']
     logger = Logger(hyperparams, 'language_modeling', scores_per_epoch)
 
-    # train(train_dataloader, validation_dataloader, dh_model, model_opt, logger, hyperparams, evaluator)
+    train(train_dataloader, validation_dataloader, model, model_opt, logger, hyperparams, evaluator)
     # test(test_dataloader, dh_model, logger, evaluator)
