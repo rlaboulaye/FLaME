@@ -25,7 +25,7 @@ def set_seed(seed):
 	torch.manual_seed(seed)
 	torch.cuda.manual_seed_all(seed)
 
-def get_device(verbose=True):
+def get_device(verbose=False):
 	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 	if verbose:
 		print("device: {}".format(device))

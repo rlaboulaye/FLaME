@@ -1,6 +1,8 @@
 import math
 import copy
+import json
 
+import numpy as np
 import torch
 from torch import nn
 
@@ -167,9 +169,7 @@ class LanguageModelHead(nn.Module):
         self.decoder.weight = model.embed.weight  # Tied weights
 
     def forward(self, h):
-        # Truncated Language modeling logits (we remove the last token)
-        h_trunc = h[:, :-1].contiguous().view(-1, self.n_embd)
-        lm_logits = self.decoder(h_trunc)
+        lm_logits = self.decoder(h)
         return lm_logits
 
 
@@ -185,3 +185,66 @@ class SingleHeadModel(nn.Module):
         h = self.transformer(x)
         lm_logits = self.lm_head(h)
         return lm_logits
+
+
+def load_openai_pretrained_model(model, n_ctx=-1, n_special=-1, n_transfer=12,
+        n_embd=768, path='./params/', verbose=True):
+    import re
+    # Load weights from TF model
+    names = json.load(open(path + 'parameters_names.json'))
+    shapes = json.load(open(path + 'params_shapes.json'))
+    offsets = np.cumsum([np.prod(shape) for shape in shapes])
+    init_params = [np.load(path + 'params_{}.npy'.format(n)) for n in range(10)]
+    init_params = np.split(np.concatenate(init_params, 0), offsets)[:-1]
+    init_params = [param.reshape(shape) for param, shape in zip(init_params, shapes)]
+    if n_ctx > 0:
+        init_params[0] = init_params[0][:n_ctx]
+    if n_special > 0:
+        init_params[0] = np.concatenate(
+            [init_params[1],
+            (np.random.randn(n_special, n_embd) * 0.02).astype(np.float32),
+            init_params[0]
+            ], 0)
+    else:
+        init_params[0] = np.concatenate(
+            [init_params[1],
+            init_params[0]
+            ], 0)
+    del init_params[1]
+    if n_transfer == -1:
+        n_transfer = 0
+    else:
+        n_transfer = 1 + n_transfer * 12
+    init_params = [arr.squeeze() for arr in init_params]
+
+    try:
+        assert model.embed.weight.shape == init_params[0].shape
+    except AssertionError as e:
+        e.args += (model.embed.weight.shape, init_params[0].shape)
+        raise
+
+    model.embed.weight.data = torch.from_numpy(init_params[0])
+
+    for name, ip in zip(names[1:n_transfer], init_params[1:n_transfer]):
+        name = name[6:]  # skip "model/"
+        assert name[-2:] == ":0"
+        name = name[:-2]
+        name = name.split('/')
+        pointer = model
+        for m_name in name:
+            if re.fullmatch(r'[A-Za-z]+\d+', m_name):
+                l = re.split(r'(\d+)', m_name)
+            else:
+                l = [m_name]
+            pointer = getattr(pointer, l[0])
+            if len(l) >= 2:
+                num = int(l[1])
+                pointer = pointer[num]
+        try:
+            if name[-1] == 'w':
+                ip = ip.T
+            assert pointer.shape == ip.shape
+        except AssertionError as e:
+            e.args += (pointer.shape, ip.shape)
+            raise
+        pointer.data = torch.from_numpy(ip)

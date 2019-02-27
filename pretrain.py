@@ -10,7 +10,7 @@ from torch.optim import Adam
 
 from utils import set_seed, get_device, validate_against_schema, get_iterator, verbose_print, Logger
 from data import TextEncoder, get_dataloaders
-from models.transformer_models import SingleHeadModel
+from models.transformer_models import SingleHeadModel, load_openai_pretrained_model
 from evaluate import Evaluator
 
 
@@ -87,69 +87,6 @@ def test(test_dataloader, model, logger, evaluator):
     logger.log()
 
     verbose_print(verbose, 'Test Loss: {}'.format(test_loss))
-
-def load_openai_pretrained_model(model, n_ctx=-1, n_special=-1, n_transfer=12,
-        n_embd=768, path='./params/', verbose=True):
-    import re
-    # Load weights from TF model
-    verbose_print(verbose, "Loading weights...")
-    names = json.load(open(path + 'parameters_names.json'))
-    shapes = json.load(open(path + 'params_shapes.json'))
-    offsets = np.cumsum([np.prod(shape) for shape in shapes])
-    init_params = [np.load(path + 'params_{}.npy'.format(n)) for n in range(10)]
-    init_params = np.split(np.concatenate(init_params, 0), offsets)[:-1]
-    init_params = [param.reshape(shape) for param, shape in zip(init_params, shapes)]
-    if n_ctx > 0:
-        init_params[0] = init_params[0][:n_ctx]
-    if n_special > 0:
-        init_params[0] = np.concatenate(
-            [init_params[1],
-            (np.random.randn(n_special, n_embd) * 0.02).astype(np.float32),
-            init_params[0]
-            ], 0)
-    else:
-        init_params[0] = np.concatenate(
-            [init_params[1],
-            init_params[0]
-            ], 0)
-    del init_params[1]
-    if n_transfer == -1:
-        n_transfer = 0
-    else:
-        n_transfer = 1 + n_transfer * 12
-    init_params = [arr.squeeze() for arr in init_params]
-
-    try:
-        assert model.embed.weight.shape == init_params[0].shape
-    except AssertionError as e:
-        e.args += (model.embed.weight.shape, init_params[0].shape)
-        raise
-
-    model.embed.weight.data = torch.from_numpy(init_params[0])
-
-    for name, ip in zip(names[1:n_transfer], init_params[1:n_transfer]):
-        name = name[6:]  # skip "model/"
-        assert name[-2:] == ":0"
-        name = name[:-2]
-        name = name.split('/')
-        pointer = model
-        for m_name in name:
-            if re.fullmatch(r'[A-Za-z]+\d+', m_name):
-                l = re.split(r'(\d+)', m_name)
-            else:
-                l = [m_name]
-            pointer = getattr(pointer, l[0])
-            if len(l) >= 2:
-                num = int(l[1])
-                pointer = pointer[num]
-        try:
-            if name[-1] == 'w':
-                ip = ip.T
-            assert pointer.shape == ip.shape
-        except AssertionError as e:
-            e.args += (pointer.shape, ip.shape)
-            raise
-        pointer.data = torch.from_numpy(ip)
 
 
 if __name__ == '__main__':
