@@ -19,9 +19,9 @@ def encode_prime(text_encoder, prime, sequence_dim):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--hyperparams', type=str, default='hyperparams/pretrain.json')
-    parser.add_argument('--params', type=str, default='params/language_modeling_2019-02-26 18:17:56')
+    parser.add_argument('--params', type=str, default='params/language_modeling_2019-02-26 18:32:32')
     parser.add_argument('--prime', type=str, default='The cat is')
-    parser.add_argument('--n_iter', type=int, default=5)
+    parser.add_argument('--n_iter', type=int, default=10)
 
     args = parser.parse_args()
 
@@ -34,7 +34,7 @@ if __name__ == '__main__':
         hyperparams = json.load(hyperparams_file)
     validate_against_schema(hyperparams, schema_path='schema/pretrain_schema.json')
 
-    set_seed(hyperparams['seed'])
+    # set_seed(hyperparams['seed'])
     device = get_device()
 
     log_path = os.path.join('results', os.path.split(params_path)[-1], 'results.json')
@@ -55,17 +55,16 @@ if __name__ == '__main__':
     X = X.unsqueeze(0)
 
     model = SingleHeadModel(hyperparams, vocab_size, sequence_dim)
-    # model.transformer.load_state_dict(torch.load(os.path.join(params_path, 'transformer.pth')))
-    # model.lm_head.load_state_dict(torch.load(os.path.join(params_path, 'lm_head.pth')))
-    load_openai_pretrained_model(model.transformer, n_ctx=sequence_dim, n_special=2)
+    model.transformer.load_state_dict(torch.load(os.path.join(params_path, 'transformer.pth')))
+    model.lm_head.load_state_dict(torch.load(os.path.join(params_path, 'lm_head.pth')))
     model.to(device)
     softmax = Softmax(-1)
 
     for i in range(n_iter):
         logits = model(X)
-        probabilities = softmax(logits[0, X.shape[1] - n_iter + i - 1])
+        probabilities = softmax(logits[0, encoded_prime_length + i - 1])
         indices = torch.multinomial(probabilities, 1).reshape(X.shape[0], 1, 1)
-        X[:, X.shape[1] - n_iter + i, 0] = indices
+        X[:, encoded_prime_length + i, 0] = indices
 
     encoded_sequences = X.cpu().numpy()[:, :encoded_prime_length + n_iter, 0]
 
