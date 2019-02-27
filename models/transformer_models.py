@@ -188,7 +188,7 @@ class SingleHeadModel(nn.Module):
 
 
 def load_openai_pretrained_model(model, n_ctx=-1, n_special=-1, n_transfer=12,
-        n_embd=768, path='./params/', verbose=True):
+        n_embd=768, path='./params/original/'):
     import re
     # Load weights from TF model
     names = json.load(open(path + 'parameters_names.json'))

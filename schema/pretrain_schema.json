@@ -96,6 +96,10 @@
         "max_grad_norm": {
             "type": "number",
             "description": "The maximum allowed for the norm of the gradients"
+        },
+        "max_sequence_dim": {
+            "type": "integer",
+            "description": "The max sequence dimension"
         }
     },
     "properties": {
@@ -170,6 +174,9 @@
         },
         "max_grad_norm": {
             "$ref": "#/definitions/max_grad_norm"
+        },
+        "max_sequence_dim": {
+            "$ref": "#/definitions/max_sequence_dim"
         }
     },
     "required": [
@@ -187,6 +194,7 @@
         "embd_pdrop",
         "attn_pdrop",
         "resid_pdrop",
-        "clf_pdrop"
+        "clf_pdrop",
+        "max_sequence_dim"
     ]
 }
