@@ -99,7 +99,7 @@ if __name__ == '__main__':
     parser.add_argument('--verbose', action='store_true')
     parser.add_argument('--save', action='store_true')
     parser.add_argument('--hyperparams', type=str, default='hyperparams/pretrain.json')
-    parser.add_argument('--data_file', type=str, default='/users/data/toronto_book_corpus/abridged_books_in_sentences.txt')
+    parser.add_argument('--data_file', type=str, default='/users/data/toronto_book_corpus/abridged_6_to_11_len_books_in_sentences.txt')
 
     args = parser.parse_args()
 
