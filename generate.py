@@ -56,7 +56,6 @@ if __name__ == '__main__':
 
     model = SingleHeadModel(hyperparams, vocab_size, sequence_dim)
     model.transformer.load_state_dict(torch.load(os.path.join(params_path, 'transformer.pth')))
-    model.lm_head.load_state_dict(torch.load(os.path.join(params_path, 'lm_head.pth')))
     model.to(device)
     softmax = Softmax(-1)
 

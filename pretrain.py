@@ -54,7 +54,6 @@ def train(train_dataloader, validation_dataloader, model, model_opt, logger, hyp
         if not os.path.exists(params_directory):
             os.makedirs(params_directory)
         transformer_path = os.path.join(params_directory, 'transformer.pth')
-        lm_head_path = os.path.join(params_directory, 'lm_head.pth')
 
     for epoch in range(hyperparams["n_iter"]):
 
@@ -76,11 +75,9 @@ def train(train_dataloader, validation_dataloader, model, model_opt, logger, hyp
             min_loss = np.mean(validation_losses)
             if save:
                 torch.save(model.transformer.state_dict(), transformer_path)
-                torch.save(model.lm_head.state_dict(), lm_head_path)
 
     if save and min_loss != new_loss:
         model.transformer.load_state_dict(torch.load(transformer_path))
-        model.lm_head.load_state_dict(torch.load(lm_head_path))
 
 def test(test_dataloader, model, logger, evaluator, save=False):
     verbose_print(verbose, 'Testing')
