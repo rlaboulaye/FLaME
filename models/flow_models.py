@@ -3,8 +3,6 @@ import torch
 from torch import nn
 
 
-# todo: check log determinant calculations (including sign / abs)
-
 class Permutation(nn.Module):
 
     def __init__(self, embedding_dim):
@@ -15,10 +13,10 @@ class Permutation(nn.Module):
     def forward(self, h, logdet, reverse=False):
         if not reverse:
             h = h.matmul(self.W)
-            logdet += self.W.transpose(0, 1).logdet()
+            logdet += self.W.transpose(0, 1).slogdet()[1]
         else:
             h = h.matmul(self.W.inverse())
-            logdet -= self.W.transpose(0, 1).logdet()
+            logdet -= self.W.transpose(0, 1).slogdet()[1]
         return h, logdet
 
 
@@ -27,26 +25,26 @@ class ActNorm(nn.Module):
     def __init__(self, embedding_dim):
         super(ActNorm, self).__init__()
         self.shift = nn.Parameter(torch.zeros(embedding_dim))
-        self.scale = nn.Parameter(torch.ones(embedding_dim))
+        self.scale_log = nn.Parameter(torch.zeros(embedding_dim))
         self.initialized = False
 
     def initialize(self, h):
         with torch.no_grad():
             shift = h.mean(dim=-1)
-            scale = h.std(dim=-1)
+            scale_log = h.std(dim=-1).log()
             self.shift.data.copy_(shift.data)
-            self.scale.data.copy_(scale.data)
+            self.scale_log.data.copy_(scale_log.data)
         self.initialized = True
 
     def forward(self, h, logdet, reverse=False):
         if not self.initialized:
             self.initialize(h)
         if not reverse:
-            h = (h - self.shift) * self.scale
-            logdet += self.scale.log().sum()
+            h = (h - self.shift) * self.scale_log.exp()
+            logdet += self.scale_log.sum()
         else:
-            h = (h / self.scale) + self.shift
-            logdet -= self.scale.log().sum()
+            h = (h / self.scale_log.exp()) + self.shift
+            logdet -= self.scale_log.sum()
         return h, logdet
 
 
