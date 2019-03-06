@@ -110,12 +110,14 @@ class FlowStep(nn.Module):
 
 class FLaME(nn.Module):
 
-    def __init__(self, cfg, vocab=40990, n_ctx=512, n_pre=1, n_post=1):
+    def __init__(self, cfg, vocab=40990, n_ctx=512):
         super(FLaME, self).__init__()
         embedding_dim = cfg['n_embd']
+        n_pre_layer = cfg['n_pre_layer']
+        n_post_layer = cfg['n_post_layer']
         self.prior = MultivariateNormal(torch.zeros(embedding_dim), torch.eye(embedding_dim))
-        self.pre_steps = nn.ModuleList([FlowStep(embedding_dim) for i in range(n_pre)])
-        self.post_steps = nn.ModuleList([FlowStep(embedding_dim) for i in range(n_post)])
+        self.pre_steps = nn.ModuleList([FlowStep(embedding_dim) for i in range(n_pre_layer)])
+        self.post_steps = nn.ModuleList([FlowStep(embedding_dim) for i in range(n_post_layer)])
         self.language_model = Transformer(cfg, vocab, n_ctx)
         self.vocab_projection = nn.Linear(*self.language_model.embed.weight.shape, bias=False)
         self.vocab_projection.weight = self.language_model.embed.weight

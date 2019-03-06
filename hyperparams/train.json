@@ -11,6 +11,8 @@
     "n_embd": 768,
     "n_head": 12,
     "n_layer": 12,
+    "n_pre_layer": 1,
+    "n_post_layer": 1,
     "embd_pdrop": 0.0,
     "attn_pdrop": 0.0,
     "resid_pdrop": 0.0,

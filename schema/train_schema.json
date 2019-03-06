@@ -1,0 +1,208 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema",
+    "definitions": {
+        "encoder_path": {
+            "type": "string",
+            "description": "The path to a byte pair encoding encoder json file"
+        },
+        "bpe_path": {
+            "type": "string",
+            "description": "The path to a byte pair encoding vocab bpe file"
+        },
+        "seed": {
+            "type": "integer",
+            "description": "The random seed"
+        },
+        "n_iter": {
+            "type": "integer",
+            "description": "The number of training iterations"
+        },
+        "scores_per_epoch": {
+            "type": "integer",
+            "description": "The number times the network is scored per epoch"
+        },
+        "test_split": {
+            "type": "number",
+            "description": "The proportion of data to be held out for test (not used if separate test file is used)"
+        },
+        "validation_split": {
+            "type": "number",
+            "description": "The proportion of train data to be held out for validation"
+        },
+        "batch_size": {
+            "type": "integer",
+            "description": "The max batch size"
+        },
+        "n_embd": {
+            "type": "integer",
+            "description": "The dimension size for the embedding dimension"
+        },
+        "n_head": {
+            "type": "integer",
+            "description": "The number of attention heads"
+        },
+        "n_layer": {
+            "type": "integer",
+            "description": "The number of attention blocks"
+        },
+        "n_pre_layer": {
+            "type": "integer",
+            "description": "The number of invertible layers pre condition"
+        },
+        "n_post_layer": {
+            "type": "integer",
+            "description": "The number of invertible layers post condition"
+        },
+        "embd_pdrop": {
+            "type": "number",
+            "description": "Dropout probability in the embedding layer"
+        },
+        "attn_pdrop": {
+            "type": "number",
+            "description": "Dropout probability in the attention layers"
+        },
+        "resid_pdrop": {
+            "type": "number",
+            "description": "Dropout probability in the residual connections"
+        },
+        "lr": {
+            "type": "number",
+            "description": "The learning rate (not used by the meta optimizer)"
+        },
+        "lr_schedule": {
+            "type": "string",
+            "description": "The learning rate schedule (only used by openai adam)"
+        },
+        "lr_warmup": {
+            "type": "number",
+            "description": "The learning rate warmup (only used by openai adam)"
+        },
+        "b1": {
+            "type": "number",
+            "description": "The b1 coefficient (not used by the meta optimizer)"
+        },
+        "b2": {
+            "type": "number",
+            "description": "The b2 coefficient (not used by the meta optimizer)"
+        },
+        "eps": {
+            "type": "number",
+            "description": "Epsilon term added to avoid division by 0 (not used by the meta_optimizer)"
+        },
+        "l2": {
+            "type": "number",
+            "description": "The l2 regularization coefficient"
+        },
+        "vector_l2": {
+            "type": "boolean",
+            "description": "Indicates need for vector_l2"
+        },
+        "max_grad_norm": {
+            "type": "number",
+            "description": "The maximum allowed for the norm of the gradients"
+        },
+        "max_sequence_dim": {
+            "type": "integer",
+            "description": "The max sequence dimension"
+        }
+    },
+    "properties": {
+        "encoder_path": {
+            "$ref": "#/definitions/encoder_path"
+        },
+        "bpe_path": {
+            "$ref": "#/definitions/bpe_path"
+        },
+        "seed": {
+            "$ref": "#/definitions/seed"
+        },
+        "n_iter": {
+            "$ref": "#/definitions/n_iter"
+        },
+        "scores_per_epoch": {
+            "$ref": "#/definitions/scores_per_epoch"
+        },
+        "test_split": {
+            "$ref": "#/definitions/test_split"
+        },
+        "validation_split": {
+            "$ref": "#/definitions/validation_split"
+        },
+        "batch_size": {
+            "$ref": "#/definitions/batch_size"
+        },
+        "n_embd": {
+            "$ref": "#/definitions/n_embd"
+        },
+        "n_head": {
+            "$ref": "#/definitions/n_head"
+        },
+        "n_layer": {
+            "$ref": "#/definitions/n_layer"
+        },
+        "n_pre_layer": {
+            "$ref": "#/definitions/n_pre_layer"
+        },
+        "n_post_layer": {
+            "$ref": "#/definitions/n_post_layer"
+        },
+        "embd_pdrop": {
+            "$ref": "#/definitions/embd_pdrop"
+        },
+        "attn_pdrop": {
+            "$ref": "#/definitions/attn_pdrop"
+        },
+        "resid_pdrop": {
+            "$ref": "#/definitions/resid_pdrop"
+        },
+        "lr": {
+            "$ref": "#/definitions/lr"
+        },
+        "lr_schedule": {
+            "$ref": "#/definitions/lr_schedule"
+        },
+        "lr_warmup": {
+            "$ref": "#/definitions/lr_warmup"
+        },
+        "b1": {
+            "$ref": "#/definitions/b1"
+        },
+        "b2": {
+            "$ref": "#/definitions/b2"
+        },
+        "eps": {
+            "$ref": "#/definitions/eps"
+        },
+        "l2": {
+            "$ref": "#/definitions/l2"
+        },
+        "vector_l2": {
+            "$ref": "#/definitions/vector_l2"
+        },
+        "max_grad_norm": {
+            "$ref": "#/definitions/max_grad_norm"
+        },
+        "max_sequence_dim": {
+            "$ref": "#/definitions/max_sequence_dim"
+        }
+    },
+    "required": [
+        "encoder_path",
+        "bpe_path",
+        "seed",
+        "n_iter",
+        "scores_per_epoch",
+        "test_split",
+        "validation_split",
+        "batch_size",
+        "n_embd",
+        "n_head",
+        "n_layer",
+        "n_pre_layer",
+        "n_post_layer",
+        "embd_pdrop",
+        "attn_pdrop",
+        "resid_pdrop",
+        "max_sequence_dim"
+    ]
+}
