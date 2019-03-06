@@ -14,7 +14,6 @@
     "embd_pdrop": 0.1,
     "attn_pdrop": 0.1,
     "resid_pdrop": 0.1,
-    "clf_pdrop": 0.1,
     "lr": 6.25e-5,
     "b1": 0.9,
     "b2": 0.999,

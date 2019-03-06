@@ -57,10 +57,6 @@
             "type": "number",
             "description": "Dropout probability in the residual connections"
         },
-        "clf_pdrop": {
-            "type": "number",
-            "description": "Dropout probability in the task head"
-        },
         "lr": {
             "type": "number",
             "description": "The learning rate (not used by the meta optimizer)"
@@ -145,9 +141,6 @@
         "resid_pdrop": {
             "$ref": "#/definitions/resid_pdrop"
         },
-        "clf_pdrop": {
-            "$ref": "#/definitions/clf_pdrop"
-        },
         "lr": {
             "$ref": "#/definitions/lr"
         },
@@ -194,7 +187,6 @@
         "embd_pdrop",
         "attn_pdrop",
         "resid_pdrop",
-        "clf_pdrop",
         "max_sequence_dim"
     ]
 }
