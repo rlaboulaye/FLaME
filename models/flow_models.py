@@ -1,6 +1,9 @@
 import numpy as np
 import torch
 from torch import nn
+from torch.distributions.multivariate_normal import MultivariateNormal
+
+from .transformer_models import Transformer
 
 
 class Permutation(nn.Module):
@@ -48,13 +51,28 @@ class ActNorm(nn.Module):
         return h, logdet
 
 
+class MLP(nn.Module):
+
+    def __init__(self, input_dim, hidden_dim, output_dim, n_layers=2):
+        super(MLP, self).__init__()
+        self.layers = nn.ModuleList([nn.Linear(input_dim, hidden_dim)])
+        self.layers.extend([nn.Linear(hidden_dim, hidden_dim) for i in range(n_layers - 1)])
+        self.layers.append(nn.Linear(hidden_dim, output_dim))
+        self.activation = nn.ReLU()
+
+    def forward(self, h):
+        for layer in self.layers:
+            h = self.activation(layer(h))
+        return h
+
+
 class FlowStep(nn.Module):
 
     def __init__(self, embedding_dim):
         super(FlowStep, self).__init__()
         self.actnorm = ActNorm(embedding_dim)
         self.permutation = Permutation(embedding_dim)
-        self.f = lambda x: torch.cat([x, x], dim=-1)
+        self.f = MLP(embedding_dim // 2, embedding_dim, embedding_dim)
 
     def forward(self, h, logdet, reverse=False):
         if not reverse:
@@ -91,14 +109,19 @@ class FlowStep(nn.Module):
 
 class FLaME(nn.Module):
 
-    def __init__(self, embedding_dim, n_pre=2, n_post=2):
+    def __init__(self, cfg, n_pre=2, n_post=1):
         super(FLaME, self).__init__()
+        embedding_dim = cfg['n_embd']
+        self.prior = MultivariateNormal(torch.zeros(embedding_dim), torch.eye(embedding_dim))
         self.pre_steps = nn.ModuleList([FlowStep(embedding_dim) for i in range(n_pre)])
         self.post_steps = nn.ModuleList([FlowStep(embedding_dim) for i in range(n_post)])
+        self.language_model = Transformer(cfg)
+        self.vocab_projection = nn.Linear(*self.language_model.embed.weight.shape, bias=False)
+        self.vocab_projection.weight = self.language_model.embed.weight
 
     def forward(self, h, y, reverse=False):
-        # preprocess y
-        logdet = 0
+        # y = self.language_model(y)[:, -1]
+        logdet = torch.zeros(h.shape[0], dtype=torch.float32)
         if not reverse:
             return self.encode(h, y, logdet)
         else:
@@ -121,3 +144,6 @@ class FLaME(nn.Module):
         for step in reversed(self.pre_steps):
             h, logdet = step(h, logdet, reverse=True)
         return h, logdet
+
+    def project(self, x):
+        return self.vocab_projection(x)
