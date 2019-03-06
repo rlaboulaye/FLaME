@@ -6,6 +6,11 @@ from torch.distributions.multivariate_normal import MultivariateNormal
 from .transformer_models import Transformer
 
 
+def split(h):
+    embedding_dim = h.shape[-1]
+    return h.split(embedding_dim // 2, dim=-1)
+
+
 class Permutation(nn.Module):
 
     def __init__(self, embedding_dim):
@@ -83,8 +88,8 @@ class FlowStep(nn.Module):
     def flow(self, h, logdet):
         h, logdet = self.actnorm(h, logdet=logdet, reverse=False)
         h, logdet = self.permutation(h, logdet=logdet, reverse=False)
-        h1, h2 = self.split(h)
-        shift, scale_log = self.split(self.f(h1))
+        h1, h2 = split(h)
+        shift, scale_log = split(self.f(h1))
         scale = scale_log.exp()
         h2 = h2 * scale + shift
         logdet += scale_log.sum(dim=-1)
@@ -92,8 +97,8 @@ class FlowStep(nn.Module):
         return h, logdet
 
     def reverse_flow(self, h, logdet):
-        h1, h2 = self.split(h)
-        shift, scale_log = self.split(self.f(h1))
+        h1, h2 = split(h)
+        shift, scale_log = split(self.f(h1))
         scale = scale_log.exp()
         h2 = (h2 - shift) / scale
         logdet -= scale_log.sum(dim=-1)
@@ -102,25 +107,22 @@ class FlowStep(nn.Module):
         h, logdet = self.actnorm(h, logdet=logdet, reverse=True)
         return h, logdet
 
-    def split(self, h):
-        embedding_dim = h.shape[-1]
-        return h.split(embedding_dim // 2, dim=-1)
-
 
 class FLaME(nn.Module):
 
-    def __init__(self, cfg, n_pre=2, n_post=1):
+    def __init__(self, cfg, vocab=40990, n_ctx=512, n_pre=1, n_post=1):
         super(FLaME, self).__init__()
         embedding_dim = cfg['n_embd']
         self.prior = MultivariateNormal(torch.zeros(embedding_dim), torch.eye(embedding_dim))
         self.pre_steps = nn.ModuleList([FlowStep(embedding_dim) for i in range(n_pre)])
         self.post_steps = nn.ModuleList([FlowStep(embedding_dim) for i in range(n_post)])
-        self.language_model = Transformer(cfg)
+        self.language_model = Transformer(cfg, vocab, n_ctx)
         self.vocab_projection = nn.Linear(*self.language_model.embed.weight.shape, bias=False)
         self.vocab_projection.weight = self.language_model.embed.weight
+        self.f = MLP(embedding_dim, embedding_dim * 2, embedding_dim * 2)
 
     def forward(self, h, y, reverse=False):
-        # y = self.language_model(y)[:, -1]
+        y = self.language_model(y)[:, -1]
         logdet = torch.zeros(h.shape[0], dtype=torch.float32)
         if not reverse:
             return self.encode(h, y, logdet)
@@ -131,7 +133,12 @@ class FLaME(nn.Module):
         h = x
         for step in self.pre_steps:
             h, logdet = step(h, logdet)
-        # incorporate y
+
+        shift, scale_log = split(self.f(y))
+        scale = scale_log.exp()
+        h = h * scale + shift
+        logdet += scale_log.sum(dim=-1)
+
         for step in self.post_steps:
             h, logdet = step(h, logdet)
         return h, logdet
@@ -140,7 +147,12 @@ class FLaME(nn.Module):
         h = z
         for step in reversed(self.post_steps):
             h, logdet = step(h, logdet, reverse=True)
-        # incorporate y
+
+        shift, scale_log = split(self.f(y))
+        scale = scale_log.exp()
+        h = (h - shift) / scale
+        logdet -= scale_log.sum(dim=-1)
+
         for step in reversed(self.pre_steps):
             h, logdet = step(h, logdet, reverse=True)
         return h, logdet
