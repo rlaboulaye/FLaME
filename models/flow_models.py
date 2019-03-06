@@ -30,8 +30,8 @@ class ActNorm(nn.Module):
 
     def initialize(self, h):
         with torch.no_grad():
-            shift = h.mean(dim=-1)
-            scale_log = h.std(dim=-1).log()
+            shift = h.mean(dim=0)
+            scale_log = h.std(dim=0).log()
             self.shift.data.copy_(shift.data)
             self.scale_log.data.copy_(scale_log.data)
         self.initialized = True
@@ -69,7 +69,7 @@ class FlowStep(nn.Module):
         shift, scale_log = self.split(self.f(h1))
         scale = scale_log.exp()
         h2 = h2 * scale + shift
-        logdet += scale_log.sum()
+        logdet += scale_log.sum(dim=-1)
         h = torch.cat([h1, h2], dim=-1)
         return h, logdet
 
@@ -78,7 +78,7 @@ class FlowStep(nn.Module):
         shift, scale_log = self.split(self.f(h1))
         scale = scale_log.exp()
         h2 = (h2 - shift) / scale
-        logdet -= scale_log.sum()
+        logdet -= scale_log.sum(dim=-1)
         h = torch.cat([h1, h2], dim=-1)
         h, logdet = self.permutation(h, logdet=logdet, reverse=True)
         h, logdet = self.actnorm(h, logdet=logdet, reverse=True)
