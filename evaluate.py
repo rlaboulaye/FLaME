@@ -14,4 +14,4 @@ class Evaluator:
         lm_losses = lm_losses.view(X.size(0), X.size(1) - 1)
         lm_losses = lm_losses * M[:, 1:]
         lm_losses = lm_losses.sum(1) / torch.sum(M[:, 1:], 1)
-        return lm_losses.sum()
+        return lm_losses.mean()
