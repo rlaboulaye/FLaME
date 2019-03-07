@@ -96,6 +96,10 @@
         "max_sequence_dim": {
             "type": "integer",
             "description": "The max sequence dimension"
+        },
+        "loss": {
+            "type": "string",
+            "description": "The loss function to be used for language modeling"
         }
     },
     "properties": {
@@ -170,6 +174,9 @@
         },
         "max_sequence_dim": {
             "$ref": "#/definitions/max_sequence_dim"
+        },
+        "loss": {
+            "$ref": "#/definitions/loss"
         }
     },
     "required": [
@@ -187,6 +194,7 @@
         "embd_pdrop",
         "attn_pdrop",
         "resid_pdrop",
-        "max_sequence_dim"
+        "max_sequence_dim",
+        "loss"
     ]
 }

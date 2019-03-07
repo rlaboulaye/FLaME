@@ -12,6 +12,7 @@ from utils import set_seed, get_device, validate_against_schema, get_iterator, v
 from data import TextEncoder, get_dataloaders
 from models.transformer_models import SingleHeadModel, load_openai_pretrained_model
 from evaluate import Evaluator
+from sinkhorn import SinkhornDistance
 
 
 def score(dataloader, model, verbose, evaluator):
@@ -125,7 +126,14 @@ if __name__ == '__main__':
 
     # load_openai_pretrained_model(model.transformer, n_ctx=sequence_dim, n_special=2)
 
-    lm_criterion = nn.CrossEntropyLoss(reduction='none')
+    loss_fct_name = hyperparams['loss']
+    if loss_fct_name == 'xent':
+        lm_criterion = nn.CrossEntropyLoss(reduction='none')
+    elif loss_fct_name == 'sinkhorn':
+        lm_criterion = SinkhornDistance(eps=0.1, max_iter=100, reduction=None)
+    else:
+        raise NotImplementedError('{} loss is not supported'.format(loss_fct_name))
+
     evaluator = Evaluator(lm_criterion)
 
     model_opt = Adam(model.parameters(),
