@@ -7,6 +7,7 @@ import numpy as np
 import torch
 from torch import nn
 from torch.optim import Adam
+from torch.optim.lr_scheduler import CosineAnnealingLR
 
 from utils import set_seed, get_device, validate_against_schema, get_iterator, verbose_print, Logger
 from data import TextEncoder, get_dataloaders
@@ -24,7 +25,7 @@ def score(dataloader, model, verbose, evaluator):
             losses.extend([loss.cpu().item()] * x.shape[0])
     return np.mean(losses)
 
-def run_epoch(train_dataloader, validation_dataloader, model, optimizer, scores_per_epoch, verbose, evaluator):
+def run_epoch(train_dataloader, validation_dataloader, model, optimizer, lr_scheduler, scores_per_epoch, verbose, evaluator):
     train_losses = []
     validation_losses = []
 
@@ -34,6 +35,7 @@ def run_epoch(train_dataloader, validation_dataloader, model, optimizer, scores_
         lm_logits = model(x)
         loss = evaluator.compute_loss(x, m, lm_logits)
         loss.backward()
+        lr_scheduler.step()
         optimizer.step()
         optimizer.zero_grad()
 
@@ -46,7 +48,7 @@ def run_epoch(train_dataloader, validation_dataloader, model, optimizer, scores_
 
     return train_losses, validation_losses
 
-def train(train_dataloader, validation_dataloader, model, model_opt, hyperparams, evaluator, scores_per_epoch, logger):
+def train(train_dataloader, validation_dataloader, model, model_opt, lr_scheduler, hyperparams, evaluator, scores_per_epoch, logger):
 
     min_loss = float('inf')
     if logger is not None:
@@ -59,7 +61,7 @@ def train(train_dataloader, validation_dataloader, model, model_opt, hyperparams
 
         verbose_print(verbose, 'Running epoch {}'.format(epoch))
 
-        train_losses, validation_losses = run_epoch(train_dataloader, validation_dataloader, model, model_opt, scores_per_epoch, verbose, evaluator)
+        train_losses, validation_losses = run_epoch(train_dataloader, validation_dataloader, model, model_opt, lr_scheduler, scores_per_epoch, verbose, evaluator)
 
         if logger is not None:
             logger.results['train_losses'].extend(train_losses)
@@ -131,6 +133,7 @@ if __name__ == '__main__':
                      lr=hyperparams['lr'],
                      betas=(hyperparams['b1'], hyperparams['b2']),
                      eps=hyperparams['eps'])
+    lr_scheduler = CosineAnnealingLR(model_opt, hyperparams["n_iter"] * len(train_dataloader))
 
     model.to(device)
 
@@ -142,5 +145,5 @@ if __name__ == '__main__':
     else:
         logger = None
 
-    train(train_dataloader, validation_dataloader, model, model_opt, hyperparams, evaluator, scores_per_epoch, logger)
+    train(train_dataloader, validation_dataloader, model, model_opt, lr_scheduler, hyperparams, evaluator, scores_per_epoch, logger)
     test(test_dataloader, model, evaluator, logger)

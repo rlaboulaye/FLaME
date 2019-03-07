@@ -63,7 +63,7 @@
         },
         "lr_schedule": {
             "type": "string",
-            "description": "The learning rate schedule (only used by openai adam)"
+            "description": "The learning rate schedule"
         },
         "lr_warmup": {
             "type": "number",
