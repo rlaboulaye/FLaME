@@ -108,24 +108,20 @@ class FlowStep(nn.Module):
         return h, logdet
 
 
-class FLaME(nn.Module):
+class ConditionalFlowNet(nn.Module):
 
-    def __init__(self, cfg, vocab=40990, n_ctx=512):
-        super(FLaME, self).__init__()
+    def __init__(self, cfg):
+        super(ConditionalFlowNet, self).__init__()
         embedding_dim = cfg['n_embd']
         n_pre_layer = cfg['n_pre_layer']
         n_post_layer = cfg['n_post_layer']
         self.prior = MultivariateNormal(torch.zeros(embedding_dim), torch.eye(embedding_dim))
         self.pre_steps = nn.ModuleList([FlowStep(embedding_dim) for i in range(n_pre_layer)])
         self.post_steps = nn.ModuleList([FlowStep(embedding_dim) for i in range(n_post_layer)])
-        self.language_model = Transformer(cfg, vocab, n_ctx)
-        self.vocab_projection = nn.Linear(*self.language_model.embed.weight.shape, bias=False)
-        self.vocab_projection.weight = self.language_model.embed.weight
         self.f = MLP(embedding_dim, embedding_dim * 2, embedding_dim * 2)
 
     def forward(self, h, y, reverse=False):
-        y = self.language_model(y)[:, -1]
-        logdet = torch.zeros(h.shape[0], dtype=torch.float32)
+        logdet = torch.zeros(h.shape[0], dtype=torch.float32, device=next(self.parameters()).device)
         if not reverse:
             return self.encode(h, y, logdet)
         else:
@@ -161,3 +157,28 @@ class FLaME(nn.Module):
 
     def project(self, x):
         return self.vocab_projection(x)
+
+
+class FLaME(nn.Module):
+
+    def __init__(self, cfg, vocab=40990, n_ctx=512):
+        super(FLaME, self).__init__()
+        self.conditional_flow = ConditionalFlowNet(cfg)
+        self.language_model = Transformer(cfg, vocab, n_ctx)
+        self.vocab_projection = nn.Linear(*self.language_model.embed.weight.shape, bias=False)
+        self.vocab_projection.weight = self.language_model.embed.weight
+
+    def forward(self, x, m):
+        x_embedded = self.language_model.embed(x).sum(dim=-2)
+        y = self.language_model(x)
+        for i in range(x.shape[1]):
+            # i think m should be blank for the last element of the sequence - look into that
+            print(m[:, i])
+            if (m[:, i] == 0).all():
+                break
+            z_i, logdet_i = self.conditional_flow(x_embedded[:, i + 1], y[:, i])
+        # need to combine the zs and logdets
+        return z_i, logdet_i
+
+    def generate(self):
+        pass

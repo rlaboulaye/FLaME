@@ -10,7 +10,7 @@ from torch.optim import Adam
 
 from utils import set_seed, get_device, validate_against_schema, get_iterator, verbose_print, Logger
 from data import TextEncoder, get_dataloaders
-from models.transformer_models import SingleHeadModel, load_openai_pretrained_model
+from models.flow_models import FLaME
 from evaluate import Evaluator
 
 
@@ -95,8 +95,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--verbose', action='store_true')
     parser.add_argument('--save', action='store_true')
-    parser.add_argument('--hyperparams', type=str, default='hyperparams/pretrain.json')
-    parser.add_argument('--data_file', type=str, default='/users/data/toronto_book_corpus/abridged_6_to_11_len_books_in_sentences.txt')
+    parser.add_argument('--hyperparams', type=str, default='hyperparams/train.json')
+    # parser.add_argument('--data_file', type=str, default='/users/data/toronto_book_corpus/abridged_6_to_11_len_books_in_sentences.txt')
+    parser.add_argument('--data_file', type=str, default='test.txt')
 
     args = parser.parse_args()
 
@@ -107,7 +108,7 @@ if __name__ == '__main__':
     hyperparams_path = args.hyperparams
     with open(hyperparams_path, 'r') as hyperparams_file:
         hyperparams = json.load(hyperparams_file)
-    validate_against_schema(hyperparams, schema_path='schema/pretrain_schema.json')
+    validate_against_schema(hyperparams, schema_path='schema/train_schema.json')
 
     data_file_path = args.data_file
     save = args.save
@@ -121,12 +122,7 @@ if __name__ == '__main__':
     max_position_encoding = train_dataloader.dataset.max_position_encoding
     sequence_dim = train_dataloader.dataset.sequence_dim
     vocab_size = len(text_encoder.encoder) + max_position_encoding
-    model = SingleHeadModel(hyperparams, vocab_size, sequence_dim)
-
-    # load_openai_pretrained_model(model.transformer, n_ctx=sequence_dim, n_special=2)
-
-    lm_criterion = nn.CrossEntropyLoss(reduction='none')
-    evaluator = Evaluator(lm_criterion)
+    model = FLaME(hyperparams, vocab_size, sequence_dim)
 
     model_opt = Adam(model.parameters(),
                      lr=hyperparams['lr'],
@@ -136,7 +132,17 @@ if __name__ == '__main__':
     model.to(device)
 
     scores_per_epoch = hyperparams['scores_per_epoch']
-    logger = Logger(hyperparams, 'language_modeling', sequence_dim, scores_per_epoch)
+    logger = Logger(hyperparams, 'flow_lm', sequence_dim, scores_per_epoch)
 
-    train(train_dataloader, validation_dataloader, model, model_opt, logger, hyperparams, evaluator, save)
-    test(test_dataloader, model, logger, evaluator, save)
+    #
+
+    for x, m in get_iterator(train_dataloader, verbose):
+        z, logdet = model(x, m)
+        print(z.shape)
+        print(logdet.shape)
+        break
+
+    # Adjust logger to include dataset name
+    # combine logger and save
+    # train(train_dataloader, validation_dataloader, model, model_opt, logger, hyperparams, evaluator, save)
+    # test(test_dataloader, model, logger, evaluator, save)
