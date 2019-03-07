@@ -19,8 +19,8 @@ def encode_prime(text_encoder, prime, sequence_dim):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--hyperparams', type=str, default='hyperparams/pretrain.json')
-    parser.add_argument('--params', type=str, default='params/language_modeling_2019-02-27 14:35:57')
-    parser.add_argument('--prime', type=str, default='The cat is')
+    parser.add_argument('--params', type=str, default='params/language_modeling_2019-03-06 17:31:11')
+    parser.add_argument('--prime', type=str, default='')
     parser.add_argument('--n_iter', type=int, default=10)
 
     args = parser.parse_args()

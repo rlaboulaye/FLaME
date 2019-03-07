@@ -46,10 +46,10 @@ def run_epoch(train_dataloader, validation_dataloader, model, optimizer, scores_
 
     return train_losses, validation_losses
 
-def train(train_dataloader, validation_dataloader, model, model_opt, logger, hyperparams, evaluator, save=False):
+def train(train_dataloader, validation_dataloader, model, model_opt, hyperparams, evaluator, scores_per_epoch, logger):
 
     min_loss = float('inf')
-    if save:
+    if logger is not None:
         params_directory = os.path.join('params', logger.task_name)
         if not os.path.exists(params_directory):
             os.makedirs(params_directory)
@@ -59,9 +59,9 @@ def train(train_dataloader, validation_dataloader, model, model_opt, logger, hyp
 
         verbose_print(verbose, 'Running epoch {}'.format(epoch))
 
-        train_losses, validation_losses = run_epoch(train_dataloader, validation_dataloader, model, model_opt, logger.results['scores_per_epoch'], verbose, evaluator)
+        train_losses, validation_losses = run_epoch(train_dataloader, validation_dataloader, model, model_opt, scores_per_epoch, verbose, evaluator)
 
-        if save:
+        if logger is not None:
             logger.results['train_losses'].extend(train_losses)
             logger.results['validation_losses'].extend(validation_losses)
             logger.log()
@@ -73,19 +73,19 @@ def train(train_dataloader, validation_dataloader, model, model_opt, logger, hyp
         new_loss = np.mean(validation_losses)
         if new_loss < min_loss:
             min_loss = np.mean(validation_losses)
-            if save:
+            if logger is not None:
                 torch.save(model.transformer.state_dict(), transformer_path)
 
-    if save and min_loss != new_loss:
+    if logger is not None and min_loss != new_loss:
         model.transformer.load_state_dict(torch.load(transformer_path))
 
-def test(test_dataloader, model, logger, evaluator, save=False):
+def test(test_dataloader, model, evaluator, logger):
     verbose_print(verbose, 'Testing')
 
     test_loss = score(test_dataloader, model, verbose, evaluator)
     verbose_print(verbose, 'Test Loss: {}'.format(test_loss))
 
-    if save:
+    if logger is not None:
         logger.results['test_loss'] = test_loss
         logger.log()
 
@@ -110,7 +110,6 @@ if __name__ == '__main__':
     validate_against_schema(hyperparams, schema_path='schema/pretrain_schema.json')
 
     data_file_path = args.data_file
-    save = args.save
 
     set_seed(hyperparams['seed'])
     device = get_device(verbose)
@@ -136,7 +135,12 @@ if __name__ == '__main__':
     model.to(device)
 
     scores_per_epoch = hyperparams['scores_per_epoch']
-    logger = Logger(hyperparams, 'language_modeling', sequence_dim, scores_per_epoch)
 
-    train(train_dataloader, validation_dataloader, model, model_opt, logger, hyperparams, evaluator, save)
-    test(test_dataloader, model, logger, evaluator, save)
+    if args.save:
+        data_file_name = os.path.splitext(os.path.split(data_file_path)[1])[0]
+        logger = Logger(hyperparams, 'language_modeling__{}'.format(data_file_name), data_file_path, sequence_dim, scores_per_epoch)
+    else:
+        logger = None
+
+    train(train_dataloader, validation_dataloader, model, model_opt, hyperparams, evaluator, scores_per_epoch, logger)
+    test(test_dataloader, model, evaluator, logger)

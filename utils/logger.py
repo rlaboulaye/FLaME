@@ -8,13 +8,14 @@ from matplotlib import pyplot as plt
 
 class Logger(object):
 
-	def __init__(self, hyperparams, task_name, sequence_dim, scores_per_epoch=1):
+	def __init__(self, hyperparams, task_name, data_path, sequence_dim, scores_per_epoch=1):
 		self.task_name = task_name + '_{}'.format(datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S'))
 		self.results_directory = os.path.join('results', self.task_name)
 		self.results = {
 			'train_losses': [],
 			'validation_losses': [],
 			'test_loss': 0,
+			'data_path': data_path,
 			'scores_per_epoch': scores_per_epoch,
 			'sequence_dim': sequence_dim,
 			'hyperparams': hyperparams
