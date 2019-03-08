@@ -4,19 +4,21 @@ import time
 import datetime
 
 from matplotlib import pyplot as plt
+import torch
 
 
 class Logger(object):
 
-	def __init__(self, hyperparams, task_name, data_path, sequence_dim, scores_per_epoch=1):
+	def __init__(self, hyperparams, task_name, data_path, sequence_dim):
 		self.task_name = task_name + '_{}'.format(datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S'))
 		self.results_directory = os.path.join('results', self.task_name)
+		self.params_directory = os.path.join('params', self.task_name)
+		self.validation_frequency = hyperparams['validation_frequency']
 		self.results = {
 			'train_losses': [],
 			'validation_losses': [],
 			'test_loss': 0,
 			'data_path': data_path,
-			'scores_per_epoch': scores_per_epoch,
 			'sequence_dim': sequence_dim,
 			'hyperparams': hyperparams
 		}
@@ -27,19 +29,26 @@ class Logger(object):
 		with open(file_path, 'r') as file_obj:
 			self.results = json.load(file_obj)
 
-	def log(self):
+	def log_results(self):
 		if not os.path.exists(self.results_directory):
 			os.makedirs(self.results_directory)
 		with open('{}/results.json'.format(self.results_directory), 'w') as file_obj:
 			json.dump(self.results, file_obj, indent=4)
 
+	def log_weights(self, state_dict, name):
+		if not os.path.exists(self.params_directory):
+			os.makedirs(self.params_directory)
+		torch.save(state_dict, os.path.join(self.params_directory, name))
+
 	def plot(self):
 		plt.figure()
 		plt.title('Loss')
-		plt.xlabel('1/{} Epoch'.format(self.results['scores_per_epoch']))
+		plt.xlabel('Batches')
 		plt.ylabel('Loss')
-		plt.plot(self.results['train_losses'], label='train')
-		plt.plot(self.results['validation_losses'], label='validate')
+		plt.plot(range(0, self.validation_frequency * len(self.results['train_losses']),
+			self.validation_frequency), self.results['train_losses'], label='train')
+		plt.plot(range(self.validation_frequency, self.validation_frequency * (1 + len(self.results['validation_losses'])),
+			self.validation_frequency), self.results['validation_losses'], label='validate')
 		plt.legend()
 		plt.savefig('{}/loss.png'.format(self.results_directory))
 		plt.close()

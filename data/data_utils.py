@@ -89,8 +89,16 @@ def get_dataloaders(file_path, text_encoder, test_split, validation_split, batch
     train_set = Dataset(device, vocab_size, train_document_matrix, train_mask_matrix)
     validation_set = Dataset(device, vocab_size, validation_document_matrix, validation_mask_matrix)
     test_set = Dataset(device, vocab_size, test_document_matrix, test_mask_matrix)
-    data_params = {
+    train_data_params = {
         'batch_size': batch_size,
         'shuffle': True
     }
-    return data.DataLoader(train_set, **data_params), data.DataLoader(validation_set, **data_params), data.DataLoader(test_set, **data_params)
+    test_data_params = {
+        'batch_size': 4 * batch_size,
+        'shuffle': True
+    }
+    train_dataloader = data.DataLoader(train_set, **train_data_params)
+    validate_training_dataloader = data.DataLoader(train_set, **test_data_params)
+    validate_validation_dataloader = data.DataLoader(validation_set, **test_data_params)
+    test_dataloader = data.DataLoader(test_set, **test_data_params)
+    return train_dataloader, validate_training_dataloader, validate_validation_dataloader, test_dataloader

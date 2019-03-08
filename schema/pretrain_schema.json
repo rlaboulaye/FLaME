@@ -15,11 +15,15 @@
         },
         "n_iter": {
             "type": "integer",
-            "description": "The number of training iterations"
+            "description": "The number of training loops"
         },
-        "scores_per_epoch": {
+        "epoch_size": {
             "type": "integer",
-            "description": "The number times the network is scored per epoch"
+            "description": "The number batches in a training loop"
+        },
+        "validation_frequency": {
+            "type": "integer",
+            "description": "The number batches in between validation measurements"
         },
         "test_split": {
             "type": "number",
@@ -111,8 +115,11 @@
         "n_iter": {
             "$ref": "#/definitions/n_iter"
         },
-        "scores_per_epoch": {
-            "$ref": "#/definitions/scores_per_epoch"
+        "epoch_size": {
+            "$ref": "#/definitions/epoch_size"
+        },
+        "validation_frequency": {
+            "$ref": "#/definitions/validation_frequency"
         },
         "test_split": {
             "$ref": "#/definitions/test_split"
@@ -177,7 +184,8 @@
         "bpe_path",
         "seed",
         "n_iter",
-        "scores_per_epoch",
+        "epoch_size",
+        "validation_frequency",
         "test_split",
         "validation_split",
         "batch_size",

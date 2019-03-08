@@ -14,9 +14,9 @@ def verbose_print(verbose, *args):
 	if verbose:
 		print(*args)
 
-def get_iterator(obj, verbose=False):
+def get_iterator(obj, total=None, verbose=False):
 	if verbose:
-		return tqdm(obj, ncols=80)
+		return tqdm(obj, total=total, ncols=80)
 	return iter(obj)
 
 def set_seed(seed):
