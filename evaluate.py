@@ -2,7 +2,7 @@ import torch
 
 
 class Evaluator:
-    def __init__(self, lm_criterion, r_coef=1000., d_coef=1000.):
+    def __init__(self, lm_criterion, r_coef=1., d_coef=1000.):
         self.lm_criterion = lm_criterion
         self.r_coef = r_coef
         self.d_coef = d_coef

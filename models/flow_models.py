@@ -179,7 +179,7 @@ class FLaME(nn.Module):
         y = self.language_model(x)
         x_embd_flat = x_embd[:, 1:].contiguous().view(-1, x_embd.shape[-1])
         y_flat = y[:, :-1].contiguous().view(-1, y.shape[-1])
-        z, logdet = self.conditional_flow(x_embd_flat, y_flat)
+        z, logdet = self.conditional_flow(x_embd_flat.clone().detach(), y_flat)
         lm_logits = self.vocab_projection(x_embd)
         return z, logdet, lm_logits
 
