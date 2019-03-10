@@ -49,8 +49,10 @@ def validate(validate_training_dataloader, validate_validation_dataloader, model
         x, m = next(iter(validate_validation_dataloader))
         z, logdet, lm_logits = model(x)
         validation_loss, _, _, _ = evaluator.compute_flame_loss(model, x, m, z, logdet, lm_logits)
+        print(train_loss.cpu().item())
+        print(validation_loss.cpu().item())
     model.train()
-    return train_loss, validation_loss
+    return train_loss.cpu().item(), validation_loss.cpu().item()
 
 def train(train_val_dataloaders, model, model_opt, hyperparams, evaluator, logger):
 
@@ -104,7 +106,7 @@ if __name__ == '__main__':
     parser.add_argument('--verbose', action='store_true')
     parser.add_argument('--save', action='store_true')
     parser.add_argument('--hyperparams', type=str, default='hyperparams/train.json')
-    parser.add_argument('--data_file', type=str, default='/users/data/toronto_book_corpus/6_to_11_len_books_in_sentences.txt')
+    parser.add_argument('--data_file', type=str, default='/users/data/toronto_book_corpus/abridged_6_to_11_len_books_in_sentences.txt')
     # parser.add_argument('--data_file', type=str, default='test.txt')
 
     args = parser.parse_args()

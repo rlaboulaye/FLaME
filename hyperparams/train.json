@@ -28,5 +28,5 @@
     "max_grad_norm": 1,
     "max_sequence_dim": 16,
     "reconstruction_coefficient": 1.0,
-    "distance_coefficient": 0.0
+    "distance_coefficient": 500.0
 }
