@@ -13,6 +13,7 @@ from utils import set_seed, get_device, validate_against_schema, get_iterator, v
 from data import TextEncoder, get_dataloaders
 from models.transformer_models import SingleHeadModel, load_openai_pretrained_model
 from evaluate import Evaluator
+from opt import OpenAIAdam
 
 
 def run_epoch(train_val_dataloaders, model, optimizer, lr_scheduler, evaluator, verbose):
@@ -26,9 +27,9 @@ def run_epoch(train_val_dataloaders, model, optimizer, lr_scheduler, evaluator, 
     n_updates = 0
     for x, m in get_iterator(train_dataloader, epoch_size, verbose):
         lm_logits = model(x)
-        loss = evaluator.compute_loss(x, m, lm_logits)
+        loss = evaluator.compute_lm_loss(x, m, lm_logits)
         loss.backward()
-        lr_scheduler.step()
+        # lr_scheduler.step()
         optimizer.step()
         optimizer.zero_grad()
 
@@ -46,9 +47,9 @@ def validate(validate_training_dataloader, validate_validation_dataloader, model
     with torch.no_grad():
         model.eval()
         x, m = next(iter(validate_training_dataloader))
-        train_loss = evaluator.compute_loss(x, m, model(x)).cpu().item()
+        train_loss = evaluator.compute_lm_loss(x, m, model(x)).cpu().item()
         x, m = next(iter(validate_validation_dataloader))
-        validation_loss = evaluator.compute_loss(x, m, model(x)).cpu().item()
+        validation_loss = evaluator.compute_lm_loss(x, m, model(x)).cpu().item()
     model.train()
     return train_loss, validation_loss
 
@@ -87,7 +88,7 @@ def test(test_dataloader, model, evaluator, logger):
         model.eval()
         for x, m in get_iterator(test_dataloader, verbose):
             lm_logits = model(x)
-            loss = evaluator.compute_loss(x, m, lm_logits)
+            loss = evaluator.compute_lm_loss(x, m, lm_logits)
             losses.extend([loss.cpu().item()] * x.shape[0])
     test_loss = np.mean(losses)
 
@@ -139,11 +140,19 @@ if __name__ == '__main__':
     lm_criterion = nn.CrossEntropyLoss(reduction='none')
     evaluator = Evaluator(lm_criterion)
 
-    model_opt = Adam(model.parameters(),
-                     lr=hyperparams['lr'],
-                     betas=(hyperparams['b1'], hyperparams['b2']),
-                     eps=hyperparams['eps'])
-    lr_scheduler = CosineAnnealingLR(model_opt, hyperparams['n_iter'] * hyperparams['epoch_size'])
+    # model_opt = Adam(model.parameters(),
+    #                  lr=hyperparams['lr'],
+    #                  betas=(hyperparams['b1'], hyperparams['b2']),
+    #                  eps=hyperparams['eps'])
+    # lr_scheduler = CosineAnnealingLR(model_opt, hyperparams['n_iter'] * hyperparams['epoch_size'])
+
+    #
+    model_opt = OpenAIAdam(model.parameters(), lr=hyperparams['lr'], schedule=hyperparams['lr_schedule'],
+            warmup=hyperparams['lr_warmup'], t_total=hyperparams['n_iter'] * hyperparams['epoch_size'],
+            b1=hyperparams['b1'], b2=hyperparams['b2'], eps=hyperparams['eps'],
+            l2=hyperparams['l2'], vector_l2=hyperparams['vector_l2'], max_grad_norm=hyperparams['max_grad_norm'])
+    lr_scheduler = None
+    #
 
     model.to(device)
 
