@@ -15,11 +15,15 @@
         },
         "n_iter": {
             "type": "integer",
-            "description": "The number of training iterations"
+            "description": "The number of training loops"
         },
-        "scores_per_epoch": {
+        "epoch_size": {
             "type": "integer",
-            "description": "The number times the network is scored per epoch"
+            "description": "The number batches in a training loop"
+        },
+        "validation_frequency": {
+            "type": "integer",
+            "description": "The number batches in between validation measurements"
         },
         "test_split": {
             "type": "number",
@@ -71,7 +75,7 @@
         },
         "lr_schedule": {
             "type": "string",
-            "description": "The learning rate schedule (only used by openai adam)"
+            "description": "The learning rate schedule"
         },
         "lr_warmup": {
             "type": "number",
@@ -104,6 +108,14 @@
         "max_sequence_dim": {
             "type": "integer",
             "description": "The max sequence dimension"
+        },
+        "reconstruction_coefficient": {
+            "type": "number",
+            "description": "The reconstruction loss coefficient"
+        },
+        "distance_coefficient": {
+            "type": "number",
+            "description": "The distance loss coefficient"
         }
     },
     "properties": {
@@ -119,8 +131,11 @@
         "n_iter": {
             "$ref": "#/definitions/n_iter"
         },
-        "scores_per_epoch": {
-            "$ref": "#/definitions/scores_per_epoch"
+        "epoch_size": {
+            "$ref": "#/definitions/epoch_size"
+        },
+        "validation_frequency": {
+            "$ref": "#/definitions/validation_frequency"
         },
         "test_split": {
             "$ref": "#/definitions/test_split"
@@ -184,6 +199,12 @@
         },
         "max_sequence_dim": {
             "$ref": "#/definitions/max_sequence_dim"
+        },
+        "reconstruction_coefficient": {
+            "$ref": "#/definitions/reconstruction_coefficient"
+        },
+        "distance_coefficient": {
+            "$ref": "#/definitions/distance_coefficient"
         }
     },
     "required": [
@@ -191,7 +212,8 @@
         "bpe_path",
         "seed",
         "n_iter",
-        "scores_per_epoch",
+        "epoch_size",
+        "validation_frequency",
         "test_split",
         "validation_split",
         "batch_size",
@@ -203,6 +225,8 @@
         "embd_pdrop",
         "attn_pdrop",
         "resid_pdrop",
-        "max_sequence_dim"
+        "max_sequence_dim",
+	"reconstruction_coefficient",
+	"distance_coefficient"
     ]
 }

@@ -45,7 +45,7 @@ class Logger(object):
 		plt.title('Loss')
 		plt.xlabel('Batches')
 		plt.ylabel('Loss')
-		plt.plot(range(0, self.validation_frequency * len(self.results['train_losses']),
+		plt.plot(range(self.validation_frequency, self.validation_frequency * (1 + len(self.results['train_losses'])),
 			self.validation_frequency), self.results['train_losses'], label='train')
 		plt.plot(range(self.validation_frequency, self.validation_frequency * (1 + len(self.results['validation_losses'])),
 			self.validation_frequency), self.results['validation_losses'], label='validate')

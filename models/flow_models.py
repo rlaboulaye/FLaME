@@ -115,7 +115,6 @@ class ConditionalFlowNet(nn.Module):
         embedding_dim = cfg['n_embd']
         n_pre_layer = cfg['n_pre_layer']
         n_post_layer = cfg['n_post_layer']
-        self.prior = MultivariateNormal(torch.zeros(embedding_dim), torch.eye(embedding_dim))
         self.pre_steps = nn.ModuleList([FlowStep(embedding_dim) for i in range(n_pre_layer)])
         self.post_steps = nn.ModuleList([FlowStep(embedding_dim) for i in range(n_post_layer)])
         self.f = MLP(embedding_dim, embedding_dim * 2, embedding_dim * 2)
@@ -163,22 +162,26 @@ class FLaME(nn.Module):
 
     def __init__(self, cfg, vocab=40990, n_ctx=512):
         super(FLaME, self).__init__()
+        self.embedding_dim = cfg['n_embd']
         self.conditional_flow = ConditionalFlowNet(cfg)
         self.language_model = Transformer(cfg, vocab, n_ctx)
-        self.vocab_projection = nn.Linear(*self.language_model.embed.weight.shape, bias=False)
-        self.vocab_projection.weight = self.language_model.embed.weight
+        # self.vocab_projection = nn.Linear(*self.language_model.embed.weight.shape, bias=False)
+        # self.vocab_projection.weight = self.language_model.embed.weight
+        self.vocab_projection = nn.Linear(self.language_model.embed.weight.shape[1], self.language_model.embed.weight.shape[0], bias=False)
+        self.prior = MultivariateNormal(torch.zeros(self.embedding_dim), torch.eye(self.embedding_dim))
 
-    def forward(self, x, m):
-        x_embedded = self.language_model.embed(x).sum(dim=-2)
+    def to(self, device):
+        super(FLaME, self).to(device)
+        self.prior = MultivariateNormal(torch.zeros(self.embedding_dim, device=device), torch.eye(self.embedding_dim, device=device))
+
+    def forward(self, x):
+        x_embd = self.language_model.embed(x).sum(dim=-2)
         y = self.language_model(x)
-        for i in range(x.shape[1]):
-            # i think m should be blank for the last element of the sequence - look into that
-            print(m[:, i])
-            if (m[:, i] == 0).all():
-                break
-            z_i, logdet_i = self.conditional_flow(x_embedded[:, i + 1], y[:, i])
-        # need to combine the zs and logdets
-        return z_i, logdet_i
+        x_embd_flat = x_embd[:, 1:].contiguous().view(-1, x_embd.shape[-1])
+        y_flat = y[:, :-1].contiguous().view(-1, y.shape[-1])
+        z, logdet = self.conditional_flow(x_embd_flat, y_flat)
+        lm_logits = self.vocab_projection(x_embd)
+        return z, logdet, lm_logits
 
     def generate(self):
         pass
