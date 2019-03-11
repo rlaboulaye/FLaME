@@ -89,19 +89,19 @@ class FlowStep(nn.Module):
         h, logdet = self.actnorm(h, logdet=logdet, reverse=False)
         h, logdet = self.permutation(h, logdet=logdet, reverse=False)
         h1, h2 = split(h)
-        shift, scale_log = split(self.f(h1))
-        scale = scale_log.exp()
-        h2 = h2 * scale + shift
-        logdet += scale_log.sum(dim=-1)
+        shift, scale_raw = split(self.f(h1))
+        scale = (scale_raw + 2.).sigmoid()
+        h2 = (h2 + shift) * scale
+        logdet += scale.log().sum(dim=-1)
         h = torch.cat([h1, h2], dim=-1)
         return h, logdet
 
     def reverse_flow(self, h, logdet):
         h1, h2 = split(h)
-        shift, scale_log = split(self.f(h1))
-        scale = scale_log.exp()
-        h2 = (h2 - shift) / scale
-        logdet -= scale_log.sum(dim=-1)
+        shift, scale_raw = split(self.f(h1))
+        scale = (scale_raw + 2.).sigmoid()
+        h2 = (h2 / scale) - shift
+        logdet -= scale.log().sum(dim=-1)
         h = torch.cat([h1, h2], dim=-1)
         h, logdet = self.permutation(h, logdet=logdet, reverse=True)
         h, logdet = self.actnorm(h, logdet=logdet, reverse=True)
@@ -131,10 +131,10 @@ class ConditionalFlowNet(nn.Module):
         for step in self.pre_steps:
             h, logdet = step(h, logdet)
 
-        shift, scale_log = split(self.f(y))
-        scale = scale_log.exp()
-        h = h * scale + shift
-        logdet += scale_log.sum(dim=-1)
+        shift, scale_raw = split(self.f(y))
+        scale = (scale_raw + 2.).sigmoid()
+        h = (h + shift) * scale
+        logdet += scale.log().sum(dim=-1)
 
         for step in self.post_steps:
             h, logdet = step(h, logdet)
@@ -145,10 +145,10 @@ class ConditionalFlowNet(nn.Module):
         for step in reversed(self.post_steps):
             h, logdet = step(h, logdet, reverse=True)
 
-        shift, scale_log = split(self.f(y))
-        scale = scale_log.exp()
-        h = (h - shift) / scale
-        logdet -= scale_log.sum(dim=-1)
+        shift, scale_raw = split(self.f(y))
+        scale = (scale_raw + 2.).sigmoid()
+        h = (h / scale) - shift
+        logdet -= scale.log().sum(dim=-1)
 
         for step in reversed(self.pre_steps):
             h, logdet = step(h, logdet, reverse=True)
