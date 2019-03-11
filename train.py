@@ -45,12 +45,10 @@ def validate(validate_training_dataloader, validate_validation_dataloader, model
         model.eval()
         x, m = next(iter(validate_training_dataloader))
         z, logdet, lm_logits = model(x)
-        train_loss, _, _, _ = evaluator.compute_flame_loss(model, x, m, z, logdet, lm_logits)
+        train_loss, nll, recon_loss, dist_loss = evaluator.compute_flame_loss(model, x, m, z, logdet, lm_logits)
         x, m = next(iter(validate_validation_dataloader))
         z, logdet, lm_logits = model(x)
-        validation_loss, _, _, _ = evaluator.compute_flame_loss(model, x, m, z, logdet, lm_logits)
-        print(train_loss.cpu().item())
-        print(validation_loss.cpu().item())
+        validation_loss, nll, recon_loss, dist_loss = evaluator.compute_flame_loss(model, x, m, z, logdet, lm_logits)
     model.train()
     return train_loss.cpu().item(), validation_loss.cpu().item()
 
@@ -72,14 +70,14 @@ def train(train_val_dataloaders, model, model_opt, hyperparams, evaluator, logge
             new_loss = np.mean(validation_losses)
             if new_loss < min_loss:
                 min_loss = np.mean(validation_losses)
-                logger.log_weights(model.transformer.state_dict(), 'FLaME.pth')
+                logger.log_weights(model.state_dict(), 'FLaME.pth')
 
         verbose_print(verbose, '\nTrain Loss: {}'.format(np.mean(train_losses)))
         verbose_print(verbose, 'Validation Loss: {}\n'.format(np.mean(validation_losses)))
 
     if logger is not None and min_loss != new_loss:
-        transformer_path = os.path.join(logger.params_directory, 'FLaME.pth')
-        model.transformer.load_state_dict(torch.load(transformer_path))
+        model_path = os.path.join(logger.params_directory, 'FLaME.pth')
+        model.load_state_dict(torch.load(model_path))
 
 def test(test_dataloader, model, evaluator, logger):
     verbose_print(verbose, 'Testing')
@@ -106,6 +104,7 @@ if __name__ == '__main__':
     parser.add_argument('--verbose', action='store_true')
     parser.add_argument('--save', action='store_true')
     parser.add_argument('--hyperparams', type=str, default='hyperparams/train.json')
+    # parser.add_argument('--data_file', type=str, default='/users/data/toronto_book_corpus/6_to_11_len_books_in_sentences.txt')
     parser.add_argument('--data_file', type=str, default='/users/data/toronto_book_corpus/abridged_6_to_11_len_books_in_sentences.txt')
     # parser.add_argument('--data_file', type=str, default='test.txt')
 
@@ -137,8 +136,13 @@ if __name__ == '__main__':
     vocab_size = len(text_encoder.encoder) + max_position_encoding
     model = FLaME(hyperparams, vocab_size, sequence_dim)
 
+    if 'pretrained_lm_path' in hyperparams:
+        pretrained_lm_path = hyperparams['pretrained_lm_path']
+        model.language_model.load_state_dict(torch.load(pretrained_lm_path))
+
     lm_criterion = nn.CrossEntropyLoss(reduction='none')
-    evaluator = Evaluator(lm_criterion, hyperparams['reconstruction_coefficient'], hyperparams['distance_coefficient'])
+    evaluator = Evaluator(lm_criterion, hyperparams['reconstruction_coefficient'],
+            hyperparams['distance_coefficient'], hyperparams['distance_metric'])
 
     model_opt = OpenAIAdam(model.parameters(), lr=hyperparams['lr'], schedule=hyperparams['lr_schedule'],
             warmup=hyperparams['lr_warmup'], t_total=hyperparams['n_iter'] * hyperparams['epoch_size'],

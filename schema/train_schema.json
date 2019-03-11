@@ -9,6 +9,10 @@
             "type": "string",
             "description": "The path to a byte pair encoding vocab bpe file"
         },
+        "pretrained_lm_path": {
+            "type": "string",
+            "description": "The path to a pretrained language model"
+        },
         "seed": {
             "type": "integer",
             "description": "The random seed"
@@ -116,6 +120,10 @@
         "distance_coefficient": {
             "type": "number",
             "description": "The distance loss coefficient"
+        },
+        "distance_metric": {
+            "type": "string",
+            "description": "The distance metric used to compute distance loss"
         }
     },
     "properties": {
@@ -124,6 +132,9 @@
         },
         "bpe_path": {
             "$ref": "#/definitions/bpe_path"
+        },
+        "pretrained_lm_path": {
+            "$ref": "#/definitions/pretrained_lm_path"
         },
         "seed": {
             "$ref": "#/definitions/seed"
@@ -205,6 +216,9 @@
         },
         "distance_coefficient": {
             "$ref": "#/definitions/distance_coefficient"
+        },
+        "distance_metric": {
+            "$ref": "#/definitions/distance_metric"
         }
     },
     "required": [
@@ -226,7 +240,8 @@
         "attn_pdrop",
         "resid_pdrop",
         "max_sequence_dim",
-	"reconstruction_coefficient",
-	"distance_coefficient"
+        "reconstruction_coefficient",
+        "distance_coefficient",
+        "distance_metric"
     ]
 }
