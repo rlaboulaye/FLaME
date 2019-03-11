@@ -2,10 +2,27 @@ import torch
 
 
 class Evaluator:
-    def __init__(self, lm_criterion, r_coef=1., d_coef=1000.):
+    def __init__(self, lm_criterion, r_coef=1., d_coef=1000., distance_metric='euclidean'):
         self.lm_criterion = lm_criterion
         self.r_coef = r_coef
         self.d_coef = d_coef
+        if distance_metric == 'euclidean':
+            self.distance_fct = self._euclidean_distance
+        elif distance_metric == 'mahalanobis':
+            self.distance_fct = self._mahalanobis_distance
+        else:
+            raise NotImplementedError('{} distance metric not supported'.format(distance_metric))
+
+    def _euclidean_distance(self, z):
+        mu = z.mean(dim=-2)
+        d = z - mu.repeat(1, z.shape[-2]).view(z.shape)
+        return d.pow(2).sum(dim=-1).sqrt()
+
+    def _mahalanobis_distance(self, z):
+        mu = z.mean(dim=-2)
+        d = z - mu.repeat(1, z.shape[-2]).view(z.shape)
+        cov = d.transpose(-1,-2).matmul(d) / z.shape[-2]
+        return (d.matmul(cov.inverse()) * d).sum(dim=-1).sqrt()
 
     def compute_flame_loss(self, model, x, m, z, logdet, lm_logits):
         nll = self.compute_nll_loss(model, m, z, logdet)
@@ -22,12 +39,7 @@ class Evaluator:
 
     def compute_distance_loss(self, m, z):
         z = z.view(m.shape + (-1,))
-        mu = z.mean(dim=-2)
-        d = z - mu.repeat(1, z.shape[-2]).view(z.shape)
-        # Temporarily simplified - this is not the mahalanobis distance
-        distances = d.pow(2).sum(dim=-1).sqrt()[:, :-1].contiguous().view(-1)
-        # cov = d.transpose(-1,-2).matmul(d) / z.shape[-2]
-        # distances = (d.matmul(cov.inverse()) * d).sum(dim=-1).sqrt()[:, :-1].contiguous().view(-1)
+        distances = self.distance_fct(z)[:, :-1].contiguous().view(-1)
         m_flat = m[:, 1:].contiguous().view(-1)
         distance_losses = distances * m_flat
         return distance_losses.mean()
