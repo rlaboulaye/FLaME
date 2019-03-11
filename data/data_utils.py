@@ -94,7 +94,7 @@ def get_dataloaders(file_path, text_encoder, test_split, validation_split, batch
         'shuffle': True
     }
     test_data_params = {
-        'batch_size': 4 * batch_size,
+        'batch_size': 8 * batch_size,
         'shuffle': True
     }
     train_dataloader = data.DataLoader(train_set, **train_data_params)
