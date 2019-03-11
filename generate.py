@@ -8,7 +8,7 @@ from torch.nn import Softmax
 
 from utils import set_seed, get_device, validate_against_schema
 from data import TextEncoder
-from models.transformer_models import SingleHeadModel, load_openai_pretrained_model
+from models import SingleHeadModel, load_openai_pretrained_model
 
 
 def encode_prime(text_encoder, prime, sequence_dim):

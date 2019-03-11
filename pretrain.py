@@ -11,7 +11,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 
 from utils import set_seed, get_device, validate_against_schema, get_iterator, verbose_print, Logger
 from data import TextEncoder, get_dataloaders
-from models.transformer_models import SingleHeadModel, load_openai_pretrained_model
+from models import SingleHeadModel, load_openai_pretrained_model
 from evaluate import Evaluator
 from opt import OpenAIAdam
 

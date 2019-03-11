@@ -9,7 +9,7 @@ from torch import nn
 
 from utils import set_seed, get_device, validate_against_schema, get_iterator, verbose_print, Logger
 from data import TextEncoder, get_dataloaders
-from models.flow_models import FLaME
+from models import FLaME
 from evaluate import Evaluator
 from opt import OpenAIAdam
 
