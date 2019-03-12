@@ -113,9 +113,9 @@
             "type": "integer",
             "description": "The max sequence dimension"
         },
-        "reconstruction_coefficient": {
+        "lm_coefficient": {
             "type": "number",
-            "description": "The reconstruction loss coefficient"
+            "description": "The language modeling loss coefficient"
         },
         "distance_coefficient": {
             "type": "number",
@@ -211,8 +211,8 @@
         "max_sequence_dim": {
             "$ref": "#/definitions/max_sequence_dim"
         },
-        "reconstruction_coefficient": {
-            "$ref": "#/definitions/reconstruction_coefficient"
+        "lm_coefficient": {
+            "$ref": "#/definitions/lm_coefficient"
         },
         "distance_coefficient": {
             "$ref": "#/definitions/distance_coefficient"
@@ -240,7 +240,7 @@
         "attn_pdrop",
         "resid_pdrop",
         "max_sequence_dim",
-        "reconstruction_coefficient",
+        "lm_coefficient",
         "distance_coefficient",
         "distance_metric"
     ]

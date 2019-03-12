@@ -165,9 +165,12 @@ class FLaME(nn.Module):
         self.embedding_dim = cfg['n_embd']
         self.conditional_flow = ConditionalFlowNet(cfg)
         self.language_model = Transformer(cfg, vocab, n_ctx)
+        self.vocab_projection = MLP(self.language_model.embed.weight.shape[1],
+            self.language_model.embed.weight.shape[0] * 2,
+            self.language_model.embed.weight.shape[0])
         # self.vocab_projection = nn.Linear(*self.language_model.embed.weight.shape, bias=False)
         # self.vocab_projection.weight = self.language_model.embed.weight
-        self.vocab_projection = nn.Linear(self.language_model.embed.weight.shape[1], self.language_model.embed.weight.shape[0], bias=False)
+        # self.vocab_projection = nn.Linear(self.language_model.embed.weight.shape[1], self.language_model.embed.weight.shape[0], bias=False)
         self.prior = MultivariateNormal(torch.zeros(self.embedding_dim), torch.eye(self.embedding_dim))
 
     def to(self, device):
