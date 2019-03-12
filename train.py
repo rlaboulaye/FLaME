@@ -17,9 +17,10 @@ from opt import OpenAIAdam
 def run_epoch(train_val_dataloaders, model, optimizer, evaluator, verbose):
     epoch_size = hyperparams['epoch_size']
     validation_frequency = hyperparams['validation_frequency']
-    train_losses = []
-    validation_losses = []
     train_dataloader, validate_training_dataloader, validate_validation_dataloader = train_val_dataloaders
+
+    train_losses = {'total': [], 'language_modeling': [], 'reconstruction': [], 'distance': []}
+    validation_losses = {'total': [], 'language_modeling': [], 'reconstruction': [], 'distance': []}
 
     model.train()
     n_updates = 0
@@ -33,8 +34,14 @@ def run_epoch(train_val_dataloaders, model, optimizer, evaluator, verbose):
         n_updates += 1
         if n_updates % validation_frequency == 0:
             train_loss, validation_loss = validate(validate_training_dataloader, validate_validation_dataloader, model)
-            train_losses.append(train_loss)
-            validation_losses.append(validation_loss)
+            train_losses['total'].append(train_loss[0])
+            train_losses['language_modeling'].append(train_loss[1])
+            train_losses['reconstruction'].append(train_loss[2])
+            train_losses['distance'].append(train_loss[3])
+            validation_losses['total'].append(validation_loss[0])
+            validation_losses['language_modeling'].append(validation_loss[1])
+            validation_losses['reconstruction'].append(validation_loss[2])
+            validation_losses['distance'].append(validation_loss[3])
         if n_updates == epoch_size:
             break
 
@@ -45,12 +52,12 @@ def validate(validate_training_dataloader, validate_validation_dataloader, model
         model.eval()
         x, m = next(iter(validate_training_dataloader))
         z, logdet, lm_logits = model(x)
-        train_loss, nll, recon_loss, dist_loss = evaluator.compute_flame_loss(model, x, m, z, logdet, lm_logits)
+        train_losses = evaluator.compute_flame_loss(model, x, m, z, logdet, lm_logits)
         x, m = next(iter(validate_validation_dataloader))
         z, logdet, lm_logits = model(x)
-        validation_loss, nll, recon_loss, dist_loss = evaluator.compute_flame_loss(model, x, m, z, logdet, lm_logits)
+        validation_losses = evaluator.compute_flame_loss(model, x, m, z, logdet, lm_logits)
     model.train()
-    return train_loss.cpu().item(), validation_loss.cpu().item()
+    return [loss.cpu().item() for loss in train_losses], [loss.cpu().item() for loss in validation_losses]
 
 def train(train_val_dataloaders, model, model_opt, hyperparams, evaluator, logger):
 
@@ -63,17 +70,16 @@ def train(train_val_dataloaders, model, model_opt, hyperparams, evaluator, logge
         train_losses, validation_losses = run_epoch(train_val_dataloaders, model, model_opt, evaluator, verbose)
 
         if logger is not None:
-            logger.results['train_losses'].extend(train_losses)
-            logger.results['validation_losses'].extend(validation_losses)
+            logger.add_train_val_losses(train_losses, validation_losses)
             logger.log_results()
             logger.plot()
-            new_loss = np.mean(validation_losses)
+            new_loss = np.mean(validation_losses['total'])
             if new_loss < min_loss:
-                min_loss = np.mean(validation_losses)
+                min_loss = new_loss
                 logger.log_weights(model.state_dict(), 'FLaME.pth')
 
-        verbose_print(verbose, '\nTrain Loss: {}'.format(np.mean(train_losses)))
-        verbose_print(verbose, 'Validation Loss: {}\n'.format(np.mean(validation_losses)))
+        verbose_print(verbose, '\nTrain Loss: {}'.format(np.mean(train_losses['total'])))
+        verbose_print(verbose, 'Validation Loss: {}\n'.format(np.mean(validation_losses['total'])))
 
     if logger is not None and min_loss != new_loss:
         model_path = os.path.join(logger.params_directory, 'FLaME.pth')
@@ -82,19 +88,23 @@ def train(train_val_dataloaders, model, model_opt, hyperparams, evaluator, logge
 def test(test_dataloader, model, evaluator, logger):
     verbose_print(verbose, 'Testing')
 
-    losses = []
+    test_losses = {'total': [], 'language_modeling': [], 'reconstruction': [], 'distance': []}
     with torch.no_grad():
         model.eval()
         for x, m in get_iterator(test_dataloader, verbose):
             z, logdet, lm_logits = model(x)
-            loss, nll, recon, dist = evaluator.compute_flame_loss(model, x, m, z, logdet, lm_logits)
-            losses.extend([loss.cpu().item()] * x.shape[0])
-    test_loss = np.mean(losses)
+            losses = evaluator.compute_flame_loss(model, x, m, z, logdet, lm_logits)
+            losses = [[loss.cpu().item()] * x.shape[0] for loss in losses]
+            test_losses['total'].extend(losses[0])
+            test_losses['language_modeling'].extend(losses[1])
+            test_losses['reconstruction'].extend(losses[2])
+            test_losses['distance'].extend(losses[3])
+    test_loss = {label: np.mean(test_losses[label]) for label in test_losses}
 
-    verbose_print(verbose, 'Test Loss: {}'.format(test_loss))
+    verbose_print(verbose, 'Test Loss: {}'.format(test_loss['total']))
 
     if logger is not None:
-        logger.results['test_loss'] = test_loss
+        logger.set_test_losses(test_loss)
         logger.log_results()
 
 
@@ -104,8 +114,8 @@ if __name__ == '__main__':
     parser.add_argument('--verbose', action='store_true')
     parser.add_argument('--save', action='store_true')
     parser.add_argument('--hyperparams', type=str, default='hyperparams/train.json')
-    # parser.add_argument('--data_file', type=str, default='/users/data/toronto_book_corpus/6_to_11_len_books_in_sentences.txt')
-    parser.add_argument('--data_file', type=str, default='/users/data/toronto_book_corpus/abridged_6_to_11_len_books_in_sentences.txt')
+    parser.add_argument('--data_file', type=str, default='/users/data/toronto_book_corpus/6_to_11_len_books_in_sentences.txt')
+    # parser.add_argument('--data_file', type=str, default='/users/data/toronto_book_corpus/abridged_6_to_11_len_books_in_sentences.txt')
     # parser.add_argument('--data_file', type=str, default='test.txt')
 
     args = parser.parse_args()

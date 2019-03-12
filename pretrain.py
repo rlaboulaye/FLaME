@@ -61,17 +61,16 @@ def train(train_val_dataloaders, model, model_opt, hyperparams, evaluator, logge
         train_losses, validation_losses = run_epoch(train_val_dataloaders, model, model_opt, evaluator, verbose)
 
         if logger is not None:
-            logger.results['train_losses'].extend(train_losses)
-            logger.results['validation_losses'].extend(validation_losses)
+            logger.add_train_val_losses({'language_modeling': train_losses}, {'language_modeling': validation_losses})
             logger.log_results()
             logger.plot()
-            new_loss = np.mean(validation_losses)
+            new_loss = np.mean(validation_losses['language_modeling'])
             if new_loss < min_loss:
-                min_loss = np.mean(validation_losses)
+                min_loss = new_loss
                 logger.log_weights(model.transformer.state_dict(), 'transformer.pth')
 
-        verbose_print(verbose, '\nTrain Loss: {}'.format(np.mean(train_losses)))
-        verbose_print(verbose, 'Validation Loss: {}\n'.format(np.mean(validation_losses)))
+        verbose_print(verbose, '\nTrain Loss: {}'.format(np.mean(train_losses['language_modeling'])))
+        verbose_print(verbose, 'Validation Loss: {}\n'.format(np.mean(validation_losses['language_modeling'])))
 
     if logger is not None and min_loss != new_loss:
         transformer_path = os.path.join(logger.params_directory, 'transformer.pth')
@@ -92,7 +91,7 @@ def test(test_dataloader, model, evaluator, logger):
     verbose_print(verbose, 'Test Loss: {}'.format(test_loss))
 
     if logger is not None:
-        logger.results['test_loss'] = test_loss
+        logger.set_test_losses({'language_modeling': test_loss})
         logger.log_results()
 
 
