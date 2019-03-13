@@ -21,7 +21,7 @@ if __name__ == '__main__':
     parser.add_argument('--hyperparams', type=str, default='hyperparams/pretrain.json')
     parser.add_argument('--params', type=str, default='params/language_modeling__6_to_11_len_books_in_sentences_2019-03-08 18:45:14')
     parser.add_argument('--prime', type=str, default='')
-    parser.add_argument('--n_iter', type=int, default=10)
+    parser.add_argument('--n_iter', type=int, default=15)
 
     args = parser.parse_args()
 

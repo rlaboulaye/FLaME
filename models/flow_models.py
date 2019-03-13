@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 from torch import nn
+from torch.nn import Softmax
 from torch.distributions.multivariate_normal import MultivariateNormal
 
 from .transformer_models import Transformer
@@ -58,16 +59,23 @@ class ActNorm(nn.Module):
 
 class MLP(nn.Module):
 
-    def __init__(self, input_dim, hidden_dim, output_dim, n_layers=2):
+    def __init__(self, input_dim, hidden_dim, output_dim, n_layers=2, final_activation=True):
         super(MLP, self).__init__()
-        self.layers = nn.ModuleList([nn.Linear(input_dim, hidden_dim)])
-        self.layers.extend([nn.Linear(hidden_dim, hidden_dim) for i in range(n_layers - 1)])
-        self.layers.append(nn.Linear(hidden_dim, output_dim))
+        if n_layers == 0:
+            self.layers = nn.ModuleList([nn.Linear(input_dim, output_dim)])
+        else:
+            self.layers = nn.ModuleList([nn.Linear(input_dim, hidden_dim)])
+            self.layers.extend([nn.Linear(hidden_dim, hidden_dim) for i in range(n_layers - 1)])
+            self.layers.append(nn.Linear(hidden_dim, output_dim))
         self.activation = nn.ReLU()
+        self.final_activation = final_activation
 
     def forward(self, h):
-        for layer in self.layers:
-            h = self.activation(layer(h))
+        for i, layer in enumerate(self.layers):
+            if i == len(self.layers) - 1 and not self.final_activation:
+                h = layer(h)
+            else:
+                h = self.activation(layer(h))
         return h
 
 
@@ -166,11 +174,10 @@ class FLaME(nn.Module):
         self.conditional_flow = ConditionalFlowNet(cfg)
         self.language_model = Transformer(cfg, vocab, n_ctx)
         self.vocab_projection = MLP(self.language_model.embed.weight.shape[1],
-            self.language_model.embed.weight.shape[0] * 2,
-            self.language_model.embed.weight.shape[0])
-        # self.vocab_projection = nn.Linear(*self.language_model.embed.weight.shape, bias=False)
-        # self.vocab_projection.weight = self.language_model.embed.weight
-        # self.vocab_projection = nn.Linear(self.language_model.embed.weight.shape[1], self.language_model.embed.weight.shape[0], bias=False)
+            self.language_model.embed.weight.shape[1] * 2,
+            self.language_model.embed.weight.shape[0],
+            n_layers=cfg['n_projection_layer'], final_activation=False)
+        self.softmax = Softmax(self.embedding_dim)
         self.prior = MultivariateNormal(torch.zeros(self.embedding_dim), torch.eye(self.embedding_dim))
 
     def to(self, device):
@@ -178,11 +185,11 @@ class FLaME(nn.Module):
         self.prior = MultivariateNormal(torch.zeros(self.embedding_dim, device=device), torch.eye(self.embedding_dim, device=device))
 
     def forward(self, x):
-        x_embd = self.language_model.embed(x).sum(dim=-2)
+        x_embd = self.language_model.embed(x[:, :, 0].contiguous()).clone().detach()
         y = self.language_model(x)
         x_embd_flat = x_embd[:, 1:].contiguous().view(-1, x_embd.shape[-1])
         y_flat = y[:, :-1].contiguous().view(-1, y.shape[-1])
-        z, logdet = self.conditional_flow(x_embd_flat.clone().detach(), y_flat)
+        z, logdet = self.conditional_flow(x_embd_flat, y_flat)
         lm_logits = self.vocab_projection(x_embd)
         return z, logdet, lm_logits
 

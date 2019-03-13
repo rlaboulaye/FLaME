@@ -26,7 +26,7 @@ class Evaluator:
 
     def compute_flame_loss(self, model, x, m, z, logdet, lm_logits):
         nll = self.compute_nll_loss(model, m, z, logdet)
-        reconstruction_loss = self.compute_lm_loss(x, m, lm_logits)
+        reconstruction_loss = self.compute_reconstruction_lm_loss(x, m, lm_logits)
         distance_loss = self.compute_distance_loss(m, z)
         loss = nll + self.r_coef * reconstruction_loss + self.d_coef * distance_loss
         return loss, nll, reconstruction_loss, distance_loss
@@ -43,6 +43,16 @@ class Evaluator:
         m_flat = m[:, 1:].contiguous().view(-1)
         distance_losses = distances * m_flat
         return distance_losses.mean()
+
+    def compute_reconstruction_lm_loss(self, X, M, lm_logits):
+        X_flat = X[:, :, 0].contiguous().view(-1)
+        M_flat = M.view(-1, M.size(-1))
+        lm_logits = lm_logits.contiguous().view(X.shape[0] * X.shape[1], -1)
+        lm_losses = self.lm_criterion(lm_logits, X_flat)
+        lm_losses = lm_losses.view(X.shape[0], X.shape[1])
+        lm_losses = lm_losses * M_flat
+        lm_losses = lm_losses.sum(1) / torch.sum(M_flat, 1)
+        return lm_losses.mean()
 
     def compute_lm_loss(self, X, M, lm_logits):
         X_shifted = X[:, 1:, 0].contiguous().view(-1)
