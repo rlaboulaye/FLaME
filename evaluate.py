@@ -35,14 +35,14 @@ class Evaluator:
         nll = -1. * (model.prior.log_prob(z) + logdet)
         m_flat = m[:, 1:].contiguous().view(-1)
         nll = nll * m_flat
-        return nll.mean()
+        return nll.sum() / m_flat.sum()
 
     def compute_distance_loss(self, m, z):
         z = z.view(m.shape + (-1,))
         distances = self.distance_fct(z)[:, :-1].contiguous().view(-1)
         m_flat = m[:, 1:].contiguous().view(-1)
         distance_losses = distances * m_flat
-        return distance_losses.mean()
+        return distance_losses.sum() / m_flat.sum()
 
     def compute_reconstruction_lm_loss(self, X, M, lm_logits):
         X_flat = X[:, :, 0].contiguous().view(-1)
@@ -51,7 +51,7 @@ class Evaluator:
         lm_losses = self.lm_criterion(lm_logits, X_flat)
         lm_losses = lm_losses.view(X.shape[0], X.shape[1])
         lm_losses = lm_losses * M_flat
-        lm_losses = lm_losses.sum(1) / torch.sum(M_flat, 1)
+        lm_losses = lm_losses.sum(1) / M_flat.sum(1)
         return lm_losses.mean()
 
     def compute_lm_loss(self, X, M, lm_logits):
