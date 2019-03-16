@@ -16,13 +16,15 @@ class Evaluator:
     def _euclidean_distance(self, z):
         mu = z.mean(dim=-2)
         d = z - mu.repeat(1, z.shape[-2]).view(z.shape)
-        return d.pow(2).sum(dim=-1).sqrt()
+        # return d.pow(2).sum(dim=-1).sqrt()
+        return d.pow(2).sum(dim=-1)
 
     def _mahalanobis_distance(self, z):
         mu = z.mean(dim=-2)
         d = z - mu.repeat(1, z.shape[-2]).view(z.shape)
         cov = d.transpose(-1,-2).matmul(d) / z.shape[-2]
-        return (d.matmul(cov.inverse()) * d).sum(dim=-1).sqrt()
+        # return (d.matmul(cov.inverse()) * d).sum(dim=-1).sqrt()
+        return (d.matmul(cov.inverse()) * d).sum(dim=-1)
 
     def compute_flame_loss(self, model, x, m, z, logdet, lm_logits):
         nll = self.compute_nll_loss(model, m, z, logdet)
