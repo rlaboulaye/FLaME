@@ -177,7 +177,7 @@ class FLaME(nn.Module):
             self.language_model.embed.weight.shape[1] * 2,
             self.language_model.embed.weight.shape[0],
             n_layers=cfg['n_projection_layer'], final_activation=False)
-        self.softmax = Softmax(self.embedding_dim)
+        self.softmax = Softmax(dim=-1)
         self.prior = MultivariateNormal(torch.zeros(self.embedding_dim), torch.eye(self.embedding_dim))
 
     def to(self, device):
@@ -193,5 +193,16 @@ class FLaME(nn.Module):
         lm_logits = self.vocab_projection(x_embd)
         return z, logdet, lm_logits
 
-    def generate(self):
-        pass
+    def generate(self, x, position_token, z=None, max_length=512):
+        if z is None:
+            z = self.prior.sample((x.shape[0],))
+        with torch.no_grad():
+            for i in range(max_length - x.shape[1]):
+                y = self.language_model(x)
+                h, _ = self.conditional_flow(z, y[:, -1], reverse=True)
+                logits = self.vocab_projection(h)
+                x_new = torch.zeros((x.shape[0], 1, 2), dtype=torch.int64, device=next(self.parameters()).device)
+                x_new[:, :, 0] = torch.multinomial(self.softmax(logits), 1)
+                x_new[:, :, 1] = position_token + x.shape[1]
+                x = torch.cat([x, x_new], dim=1)
+        return x
