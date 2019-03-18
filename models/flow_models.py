@@ -81,11 +81,12 @@ class MLP(nn.Module):
 
 class FlowStep(nn.Module):
 
-    def __init__(self, embedding_dim):
+    def __init__(self, cfg):
         super(FlowStep, self).__init__()
+        embedding_dim = cfg['n_embd']
         self.actnorm = ActNorm(embedding_dim)
         self.permutation = Permutation(embedding_dim)
-        self.f = MLP(embedding_dim // 2, embedding_dim, embedding_dim)
+        self.f = MLP(embedding_dim // 2, embedding_dim, embedding_dim, cfg['n_f_layer'])
 
     def forward(self, h, logdet, reverse=False):
         if not reverse:
@@ -123,9 +124,9 @@ class ConditionalFlowNet(nn.Module):
         embedding_dim = cfg['n_embd']
         n_pre_layer = cfg['n_pre_layer']
         n_post_layer = cfg['n_post_layer']
-        self.pre_steps = nn.ModuleList([FlowStep(embedding_dim) for i in range(n_pre_layer)])
-        self.post_steps = nn.ModuleList([FlowStep(embedding_dim) for i in range(n_post_layer)])
-        self.f = MLP(embedding_dim, embedding_dim * 2, embedding_dim * 2)
+        self.pre_steps = nn.ModuleList([FlowStep(cfg) for i in range(n_pre_layer)])
+        self.post_steps = nn.ModuleList([FlowStep(cfg) for i in range(n_post_layer)])
+        self.f = MLP(embedding_dim, embedding_dim * 2, embedding_dim * 2, cfg['n_f_layer'])
 
     def forward(self, h, y, reverse=False):
         logdet = torch.zeros(h.shape[0], dtype=torch.float32, device=next(self.parameters()).device)

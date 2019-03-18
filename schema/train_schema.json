@@ -65,6 +65,10 @@
             "type": "integer",
             "description": "The number of hidden layers in the embedded to token space projection"
         },
+        "n_f_layer": {
+            "type": "integer",
+            "description": "The number of hidden layers in the mlp used as function f of the FlowStep"
+        },
         "embd_pdrop": {
             "type": "number",
             "description": "Dropout probability in the embedding layer"
@@ -183,6 +187,9 @@
         "n_projection_layer": {
             "$ref": "#/definitions/n_projection_layer"
         },
+        "n_f_layer": {
+            "$ref": "#/definitions/n_f_layer"
+        },
         "embd_pdrop": {
             "$ref": "#/definitions/embd_pdrop"
         },
@@ -251,6 +258,7 @@
         "n_pre_layer",
         "n_post_layer",
         "n_projection_layer",
+        "n_f_layer",
         "embd_pdrop",
         "attn_pdrop",
         "resid_pdrop",
