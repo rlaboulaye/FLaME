@@ -86,7 +86,8 @@ class Attention(nn.Module):
         w = torch.matmul(query, key)
         if self.scale:
             w = w / math.sqrt(value.size(-1))
-        w = w * self.b + -1e9 * (1 - self.b)  # TF implementation method: mask_attn_weights
+        b = self.b[:, :, :w.shape[-1], :w.shape[-1]]
+        w = w * b + -1e9 * (1 - b)  # TF implementation method: mask_attn_weights
         w = nn.Softmax(dim=-1)(w)
         w = self.attn_dropout(w)
         return torch.matmul(w, value)
