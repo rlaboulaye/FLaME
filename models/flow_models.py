@@ -35,7 +35,7 @@ class ActNorm(nn.Module):
         super(ActNorm, self).__init__()
         self.shift = nn.Parameter(torch.zeros(embedding_dim))
         self.scale_log = nn.Parameter(torch.zeros(embedding_dim))
-        self.initialized = nn.Parameter(torch.zeros(1).byte(), requires_grad=False)
+        self.register_buffer('initialized', torch.zeros(1).byte())
 
     def initialize(self, h):
         with torch.no_grad():
@@ -43,7 +43,7 @@ class ActNorm(nn.Module):
             scale_log = h.std(dim=0).log()
             self.shift.data.copy_(shift.data)
             self.scale_log.data.copy_(scale_log.data)
-        self.initialized[0] = torch.ones(1).byte()
+        self.initialized = torch.ones(1).byte()
 
     def forward(self, h, logdet, reverse=False):
         if not self.initialized:
