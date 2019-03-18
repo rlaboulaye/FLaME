@@ -9,7 +9,7 @@ import torch
 
 class Logger(object):
 
-	def __init__(self, hyperparams, task_name, data_path, sequence_dim):
+	def __init__(self, hyperparams, task_name, data_path):
 		self.task_name = task_name + '_{}'.format(datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S'))
 		self.results_directory = os.path.join('results', self.task_name)
 		self.params_directory = os.path.join('params', self.task_name)
@@ -19,7 +19,6 @@ class Logger(object):
 			'validation_losses': {},
 			'test_loss': {},
 			'data_path': data_path,
-			'sequence_dim': sequence_dim,
 			'hyperparams': hyperparams
 		}
 

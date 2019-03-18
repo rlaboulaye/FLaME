@@ -24,5 +24,6 @@
     "l2": 0.01,
     "vector_l2": true,
     "max_grad_norm": 1,
+    "n_ctx": 512,
     "max_sequence_dim": 16
 }

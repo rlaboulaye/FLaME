@@ -68,8 +68,9 @@ class LayerNorm(nn.Module):
 
 class Attention(nn.Module):
 
-    def __init__(self, embed_dim, n_ctx, cfg, scale=False):
+    def __init__(self, embed_dim, cfg, scale=False):
         super(Attention, self).__init__()
+        n_ctx = cfg['n_ctx']
         n_state = embed_dim  # in Attention: n_state=768 (nx=n_embd)
         # [switch nx => n_state from Block to Attention to keep identical to TF implem]
         assert n_state % cfg['n_head'] == 0
@@ -120,10 +121,10 @@ class Attention(nn.Module):
 
 class Block(nn.Module):
 
-    def __init__(self, n_ctx, cfg, scale=False):
+    def __init__(self, cfg, scale=False):
         super(Block, self).__init__()
         nx = cfg['n_embd']
-        self.attn = Attention(nx, n_ctx, cfg, scale)
+        self.attn = Attention(nx, cfg, scale)
         self.ln_1 = LayerNorm(nx)
         self.mlp = MLP(4 * nx, cfg)
         self.ln_2 = LayerNorm(nx)
@@ -138,12 +139,12 @@ class Block(nn.Module):
 
 class Transformer(nn.Module):
 
-    def __init__(self, cfg, vocab=40990, n_ctx=512):
+    def __init__(self, cfg, vocab=40990):
         super(Transformer, self).__init__()
         self.vocab = vocab
         self.embed = nn.Embedding(vocab, cfg['n_embd'])
         self.drop = nn.Dropout(cfg['embd_pdrop'])
-        block = Block(n_ctx, cfg, scale=True)
+        block = Block(cfg, scale=True)
         self.h = nn.ModuleList([copy.deepcopy(block) for _ in range(cfg['n_layer'])])
 
         nn.init.normal_(self.embed.weight, std=0.02)
@@ -179,7 +180,7 @@ class SingleHeadModel(nn.Module):
 
     def __init__(self, cfg, vocab=40990, sequence_dim=512):
         super(SingleHeadModel, self).__init__()
-        self.transformer = Transformer(cfg, vocab=vocab, n_ctx=sequence_dim)
+        self.transformer = Transformer(cfg, vocab=vocab)
         self.lm_head = LanguageModelHead(self.transformer, cfg)
 
     def forward(self, x):

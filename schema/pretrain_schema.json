@@ -97,9 +97,13 @@
             "type": "number",
             "description": "The maximum allowed for the norm of the gradients"
         },
+        "n_ctx": {
+            "type": "integer",
+            "description": "The max sequence dimension handled by the model"
+        },
         "max_sequence_dim": {
             "type": "integer",
-            "description": "The max sequence dimension"
+            "description": "The max sequence dimension used in data preprocessing"
         }
     },
     "properties": {
@@ -175,6 +179,9 @@
         "max_grad_norm": {
             "$ref": "#/definitions/max_grad_norm"
         },
+        "n_ctx": {
+            "$ref": "#/definitions/n_ctx"
+        },
         "max_sequence_dim": {
             "$ref": "#/definitions/max_sequence_dim"
         }
@@ -195,6 +202,7 @@
         "embd_pdrop",
         "attn_pdrop",
         "resid_pdrop",
+        "n_ctx",
         "max_sequence_dim"
     ]
 }

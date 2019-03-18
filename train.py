@@ -114,8 +114,8 @@ if __name__ == '__main__':
     parser.add_argument('--verbose', action='store_true')
     parser.add_argument('--save', action='store_true')
     parser.add_argument('--hyperparams', type=str, default='hyperparams/train.json')
-    parser.add_argument('--data_file', type=str, default='/users/data/toronto_book_corpus/6_to_11_len_books_in_sentences.txt')
-    # parser.add_argument('--data_file', type=str, default='/users/data/toronto_book_corpus/abridged_6_to_11_len_books_in_sentences.txt')
+    # parser.add_argument('--data_file', type=str, default='/users/data/toronto_book_corpus/6_to_11_len_books_in_sentences.txt')
+    parser.add_argument('--data_file', type=str, default='/users/data/toronto_book_corpus/abridged_6_to_11_len_books_in_sentences.txt')
     # parser.add_argument('--data_file', type=str, default='test.txt')
 
     args = parser.parse_args()
@@ -134,6 +134,9 @@ if __name__ == '__main__':
     set_seed(hyperparams['seed'])
     device = get_device(verbose)
 
+    if hyperparams['max_sequence_dim'] > hyperparams['n_ctx']:
+        raise ValueError('max_sequence_dim must be less than or equal to n_ctx')
+
     text_encoder = TextEncoder(hyperparams['encoder_path'], hyperparams['bpe_path'])
     dataloaders = get_dataloaders(data_file_path, text_encoder, hyperparams['test_split'],
             hyperparams['validation_split'], hyperparams['batch_size'], device,
@@ -142,9 +145,8 @@ if __name__ == '__main__':
     test_dataloader = dataloaders[-1]
 
     max_position_encoding = test_dataloader.dataset.max_position_encoding
-    sequence_dim = test_dataloader.dataset.sequence_dim
     vocab_size = len(text_encoder.encoder) + max_position_encoding
-    model = FLaME(hyperparams, vocab_size, sequence_dim)
+    model = FLaME(hyperparams, vocab_size)
 
     if 'pretrained_lm_path' in hyperparams:
         pretrained_lm_path = hyperparams['pretrained_lm_path']
@@ -163,7 +165,7 @@ if __name__ == '__main__':
 
     if args.save:
         data_file_name = os.path.splitext(os.path.split(data_file_path)[1])[0]
-        logger = Logger(hyperparams, 'flow_lm__{}'.format(data_file_name), data_file_path, sequence_dim)
+        logger = Logger(hyperparams, 'flow_lm__{}'.format(data_file_name), data_file_path)
     else:
         logger = None
 

@@ -168,11 +168,11 @@ class ConditionalFlowNet(nn.Module):
 
 class FLaME(nn.Module):
 
-    def __init__(self, cfg, vocab=40990, n_ctx=512):
+    def __init__(self, cfg, vocab=40990):
         super(FLaME, self).__init__()
         self.embedding_dim = cfg['n_embd']
         self.conditional_flow = ConditionalFlowNet(cfg)
-        self.language_model = Transformer(cfg, vocab, n_ctx)
+        self.language_model = Transformer(cfg, vocab)
         self.vocab_projection = MLP(self.language_model.embed.weight.shape[1],
             self.language_model.embed.weight.shape[1] * 2,
             self.language_model.embed.weight.shape[0],

@@ -119,6 +119,9 @@ if __name__ == '__main__':
     set_seed(hyperparams['seed'])
     device = get_device(verbose)
 
+    if hyperparams['max_sequence_dim'] > hyperparams['n_ctx']:
+        raise ValueError('max_sequence_dim must be less than or equal to n_ctx')
+
     text_encoder = TextEncoder(hyperparams['encoder_path'], hyperparams['bpe_path'])
     dataloaders = get_dataloaders(data_file_path, text_encoder, hyperparams['test_split'],
             hyperparams['validation_split'], hyperparams['batch_size'], device,
@@ -127,11 +130,10 @@ if __name__ == '__main__':
     test_dataloader = dataloaders[-1]
 
     max_position_encoding = test_dataloader.dataset.max_position_encoding
-    sequence_dim = test_dataloader.dataset.sequence_dim
     vocab_size = len(text_encoder.encoder) + max_position_encoding
-    model = SingleHeadModel(hyperparams, vocab_size, sequence_dim)
+    model = SingleHeadModel(hyperparams, vocab_size)
 
-    # load_openai_pretrained_model(model.transformer, n_ctx=sequence_dim, n_special=2)
+    # load_openai_pretrained_model(model.transformer, n_ctx=hyperparams['n_ctx'], n_special=2)
 
     lm_criterion = nn.CrossEntropyLoss(reduction='none')
     evaluator = Evaluator(lm_criterion)
@@ -145,7 +147,7 @@ if __name__ == '__main__':
 
     if args.save:
         data_file_name = os.path.splitext(os.path.split(data_file_path)[1])[0]
-        logger = Logger(hyperparams, 'language_modeling__{}'.format(data_file_name), data_file_path, sequence_dim)
+        logger = Logger(hyperparams, 'language_modeling__{}'.format(data_file_name), data_file_path)
     else:
         logger = None
 
