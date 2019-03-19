@@ -13,6 +13,10 @@
             "type": "string",
             "description": "The path to a pretrained language model"
         },
+        "freeze_lm": {
+            "type": "boolean",
+            "description": "Flag to determine whether or not the language model weights should be frozen"
+        },
         "seed": {
             "type": "integer",
             "description": "The random seed"
@@ -147,6 +151,9 @@
         },
         "pretrained_lm_path": {
             "$ref": "#/definitions/pretrained_lm_path"
+        },
+        "freeze_lm": {
+            "$ref": "#/definitions/freeze_lm"
         },
         "seed": {
             "$ref": "#/definitions/seed"

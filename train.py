@@ -14,6 +14,10 @@ from evaluate import Evaluator
 from opt import OpenAIAdam
 
 
+def no_grad(module):
+    for parameter in module.parameters():
+        parameter.requires_grad = False
+
 def run_epoch(train_val_dataloaders, model, optimizer, evaluator, verbose):
     epoch_size = hyperparams['epoch_size']
     validation_frequency = hyperparams['validation_frequency']
@@ -155,6 +159,9 @@ if __name__ == '__main__':
     lm_criterion = nn.CrossEntropyLoss(reduction='none')
     evaluator = Evaluator(lm_criterion, hyperparams['lm_coefficient'],
             hyperparams['distance_coefficient'], hyperparams['distance_metric'])
+
+    if 'freeze_lm' in hyperparams and hyperparams['freeze_lm']:
+        no_grad(model.language_model)
 
     model_opt = OpenAIAdam(model.parameters(), lr=hyperparams['lr'], schedule=hyperparams['lr_schedule'],
             warmup=hyperparams['lr_warmup'], t_total=hyperparams['n_iter'] * hyperparams['epoch_size'],
