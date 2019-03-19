@@ -129,8 +129,7 @@ if __name__ == '__main__':
     train_val_dataloaders = dataloaders[:-1]
     test_dataloader = dataloaders[-1]
 
-    max_position_encoding = test_dataloader.dataset.max_position_encoding
-    vocab_size = len(text_encoder.encoder) + max_position_encoding
+    vocab_size = len(text_encoder.encoder) + hyperparams['n_ctx']
     model = SingleHeadModel(hyperparams, vocab_size)
 
     # load_openai_pretrained_model(model.transformer, n_ctx=hyperparams['n_ctx'], n_special=2)

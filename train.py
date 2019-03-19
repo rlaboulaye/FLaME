@@ -148,8 +148,11 @@ if __name__ == '__main__':
     train_val_dataloaders = dataloaders[:-1]
     test_dataloader = dataloaders[-1]
 
-    max_position_encoding = test_dataloader.dataset.max_position_encoding
-    vocab_size = len(text_encoder.encoder) + max_position_encoding
+    ###
+    # vocab_size = len(text_encoder.encoder) + hyperparams['n_ctx']
+    # temporary fix until i retrain lm on larger vocab size
+    vocab_size = len(text_encoder.encoder) + test_dataloader.dataset.max_position_encoding
+    ###
     model = FLaME(hyperparams, vocab_size)
 
     if 'pretrained_lm_path' in hyperparams:
