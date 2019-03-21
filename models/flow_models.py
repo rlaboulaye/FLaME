@@ -117,6 +117,35 @@ class FlowStep(nn.Module):
         return h, logdet
 
 
+class LogSquash(nn.Module):
+
+    def __init__(self, a=1., b=1.):
+        super(LogSquash, self).__init__()
+        self.register_buffer('a', a * torch.ones(1))
+        self.register_buffer('b', b * torch.ones(1))
+
+    def forward(self, value, scale, logdet, reverse=False):
+        if reverse:
+            return self.log_squash(value, scale, logdet)
+        else:
+            return self.inverse_log_squash(value, scale, logdet)
+
+    def log_squash(self, value, scale, logdet):
+        squashed_scale = (self.b * scale.abs() + 1).log()
+        directed_squashed_scale = self.a * scale.sign() * squashed_scale + .5
+        squashed_value = value * directed_squashed_scale
+        logdet += (value.abs().log() + (self.a * self.b).log() - squashed_scale).sum(dim=-1)
+        return squashed_value, logdet
+
+    def inverse_log_squash(self, value, scale, logdet):
+        sign = (scale.sign() * (scale - .5 * value)).sign()
+        ratio = scale / value
+        directed_ratio = (1. / self.a) * sign * (ratio - .5)
+        stretched_value = (1. / self.b) * sign * (directed_ratio.exp() - 1)
+        logdet -= (value.abs().log() + (self.a * self.b).log() - directed_ratio).sum(dim=-1)
+        return stretched_value, logdet
+
+
 class ConditionalFlowNet(nn.Module):
 
     def __init__(self, cfg):
@@ -126,7 +155,7 @@ class ConditionalFlowNet(nn.Module):
         n_post_layer = cfg['n_post_layer']
         self.pre_steps = nn.ModuleList([FlowStep(cfg) for i in range(n_pre_layer)])
         self.post_steps = nn.ModuleList([FlowStep(cfg) for i in range(n_post_layer)])
-        self.f = MLP(embedding_dim, embedding_dim * 2, embedding_dim * 2, cfg['n_f_layer'])
+        self.log_squash = LogSquash()
 
     def forward(self, h, y, reverse=False):
         logdet = torch.zeros(h.shape[0], dtype=torch.float32, device=next(self.parameters()).device)
@@ -140,11 +169,8 @@ class ConditionalFlowNet(nn.Module):
         for step in self.pre_steps:
             h, logdet = step(h, logdet)
 
-        shift, scale_raw = split(self.f(y))
-        scale = (scale_raw + 2.).sigmoid()
-        h = (h + shift) * scale
-        logdet += scale.log().sum(dim=-1)
-
+        h, logdet = self.log_squash(y, h, logdet)
+        
         for step in self.post_steps:
             h, logdet = step(h, logdet)
         return h, logdet
@@ -154,10 +180,7 @@ class ConditionalFlowNet(nn.Module):
         for step in reversed(self.post_steps):
             h, logdet = step(h, logdet, reverse=True)
 
-        shift, scale_raw = split(self.f(y))
-        scale = (scale_raw + 2.).sigmoid()
-        h = (h / scale) - shift
-        logdet -= scale.log().sum(dim=-1)
+        h, logdet = self.log_squash(y, h, logdet, reverse=True)
 
         for step in reversed(self.pre_steps):
             h, logdet = step(h, logdet, reverse=True)
@@ -180,6 +203,8 @@ class FLaME(nn.Module):
             n_layers=cfg['n_projection_layer'], final_activation=False)
         self.softmax = Softmax(dim=-1)
         self.prior = MultivariateNormal(torch.zeros(self.embedding_dim), torch.eye(self.embedding_dim))
+        self.register_buffer('i', torch.zeros(1))
+        self.register_buffer('one', torch.ones(1))
 
     def to(self, device):
         super(FLaME, self).to(device)
@@ -188,10 +213,14 @@ class FLaME(nn.Module):
     def forward(self, x):
         x_embd = self.language_model.embed(x[:, :, 0].contiguous()).clone().detach()
         y = self.language_model(x)
+        shift = torch.max(2e-2 * self.one, -.15 * (.1 * self.i + 1).log() + 1)
+        y += y.sign() * shift
         x_embd_flat = x_embd[:, 1:].contiguous().view(-1, x_embd.shape[-1])
         y_flat = y[:, :-1].contiguous().view(-1, y.shape[-1])
         z, logdet = self.conditional_flow(x_embd_flat, y_flat)
         lm_logits = self.vocab_projection(x_embd)
+        if self.training:
+            self.i += 1
         return z, logdet, lm_logits
 
     def generate(self, x, position_token, z=None, max_length=512):

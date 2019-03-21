@@ -22,8 +22,8 @@ def encode_sequences(text_encoder, sequences):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--hyperparams', type=str, default='hyperparams/train.json')
-    parser.add_argument('--params', type=str, default='params/flow_lm__abridged_6_to_11_len_books_in_sentences_2019-03-18 14:50:28')
-    parser.add_argument('--sequences', type=str, default='i fell dwarf_end_i fell again_end_')
+    parser.add_argument('--params', type=str, default='params/flow_lm__6_to_11_len_books_in_sentences_2019-03-21 03:06:17')
+    parser.add_argument('--sequences', type=str, default='i fell down._end_burp highway down._end_')
 
     args = parser.parse_args()
 
@@ -58,13 +58,14 @@ if __name__ == '__main__':
     model = FLaME(hyperparams, vocab_size)
     model.load_state_dict(torch.load(os.path.join(params_path, 'FLaME.pth')))
     model.to(device)
+    model.eval()
 
     with torch.no_grad():
         z, _, _ = model(x)
         z = z.view(batch_size, -1, hyperparams['n_embd'])
         #
         log_probs = model.prior.log_prob(z)
-        print(log_probs[:, -2])
+        print(log_probs[:, -3])
         #
     #     x_start = np.zeros((z.shape[0],) + (1, 2))
     #     x_start[:, :, 0] = np.array([text_encoder.start_token] * z.shape[0]).reshape(-1, 1)

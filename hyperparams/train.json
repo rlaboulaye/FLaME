@@ -5,7 +5,7 @@
     "pretrained_lm_path": "/users/grads/r/rdalbest/Documents/FLaME/params/language_modeling__6_to_11_len_books_in_sentences_2019-03-08 18:45:14/transformer.pth",
     "freeze_lm": true,
     "seed": 333,
-    "n_iter": 5,
+    "n_iter": 35,
     "epoch_size": 10000,
     "validation_frequency": 100,
     "test_split": 0.2,

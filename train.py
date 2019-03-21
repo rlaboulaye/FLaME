@@ -31,8 +31,9 @@ def run_epoch(train_val_dataloaders, model, optimizer, evaluator, verbose):
     for x, m in get_iterator(train_dataloader, epoch_size, verbose):
         z, logdet, lm_logits = model(x)
         loss, _, _, _ = evaluator.compute_flame_loss(model, x, m, z, logdet, lm_logits)
-        loss.backward()
-        optimizer.step()
+        if not torch.isnan(loss):
+            loss.backward()
+            optimizer.step()
         optimizer.zero_grad()
 
         n_updates += 1
@@ -78,14 +79,16 @@ def train(train_val_dataloaders, model, model_opt, hyperparams, evaluator, logge
             logger.log_results()
             logger.plot()
             new_loss = np.mean(validation_losses['total'])
-            if new_loss < min_loss:
+            ### temporary
+            if new_loss < min_loss or True:
                 min_loss = new_loss
                 logger.log_weights(model.state_dict(), 'FLaME.pth')
 
         verbose_print(verbose, '\nTrain Loss: {}'.format(np.mean(train_losses['total'])))
         verbose_print(verbose, 'Validation Loss: {}\n'.format(np.mean(validation_losses['total'])))
 
-    if logger is not None and min_loss != new_loss:
+    ### temporary
+    if logger is not None and min_loss != new_loss and False:
         model_path = os.path.join(logger.params_directory, 'FLaME.pth')
         model.load_state_dict(torch.load(model_path))
 
@@ -118,8 +121,8 @@ if __name__ == '__main__':
     parser.add_argument('--verbose', action='store_true')
     parser.add_argument('--save', action='store_true')
     parser.add_argument('--hyperparams', type=str, default='hyperparams/train.json')
-    # parser.add_argument('--data_file', type=str, default='/users/data/toronto_book_corpus/6_to_11_len_books_in_sentences.txt')
-    parser.add_argument('--data_file', type=str, default='/users/data/toronto_book_corpus/abridged_6_to_11_len_books_in_sentences.txt')
+    parser.add_argument('--data_file', type=str, default='/users/data/toronto_book_corpus/6_to_11_len_books_in_sentences.txt')
+    # parser.add_argument('--data_file', type=str, default='/users/data/toronto_book_corpus/abridged_6_to_11_len_books_in_sentences.txt')
     # parser.add_argument('--data_file', type=str, default='test.txt')
 
     args = parser.parse_args()

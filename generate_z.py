@@ -56,6 +56,7 @@ if __name__ == '__main__':
     model = FLaME(hyperparams, vocab_size)
     model.load_state_dict(torch.load(os.path.join(params_path, 'FLaME.pth')))
     model.to(device)
+    model.eval()
 
     x = model.generate(x, position_token, max_length=max_length)
 
