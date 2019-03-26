@@ -90,7 +90,7 @@ class ActNorm(nn.Module):
 
 class MLP(nn.Module):
 
-    def __init__(self, input_dim, hidden_dim, output_dim, n_layers=2, final_activation=True):
+    def __init__(self, input_dim, hidden_dim, output_dim, n_layers=2, final_activation=True, pdrop=0.):
         super(MLP, self).__init__()
         if n_layers == 0:
             self.layers = nn.ModuleList([nn.Linear(input_dim, output_dim)])
@@ -100,6 +100,7 @@ class MLP(nn.Module):
             self.layers.append(nn.Linear(hidden_dim, output_dim))
         self.activation = nn.ReLU()
         self.final_activation = final_activation
+        self.dropout = nn.Dropout(pdrop)
 
     def forward(self, h):
         for i, layer in enumerate(self.layers):
@@ -107,7 +108,7 @@ class MLP(nn.Module):
                 h = layer(h)
             else:
                 h = self.activation(layer(h))
-        return h
+        return self.dropout(h)
 
 
 class FlowStep(nn.Module):
