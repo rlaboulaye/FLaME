@@ -26,16 +26,18 @@ class Evaluator:
         # return (d.matmul(cov.inverse()) * d).sum(dim=-1).sqrt()
         return (d.matmul(cov.inverse()) * d).sum(dim=-1)
 
-    def compute_flame_loss(self, model, x, m, z, logdet, lm_logits):
+    def compute_flame_loss(self, model, x, m, z, logdet, neg_z, neg_logdet, lm_logits):
         nll = self.compute_nll_loss(model, m, z, logdet)
+        neg_nll = self.compute_nll_loss(model, m, neg_z, neg_logdet)
+        cll = nll - neg_nll
         reconstruction_loss = self.compute_reconstruction_lm_loss(x, m, lm_logits)
         distance_loss = self.compute_distance_loss(m, z)
-        loss = nll + self.r_coef * reconstruction_loss + self.d_coef * distance_loss
-        return loss, nll, reconstruction_loss, distance_loss
+        loss = cll + self.r_coef * reconstruction_loss + self.d_coef * distance_loss
+        return loss, cll, reconstruction_loss, distance_loss
 
     def compute_nll_loss(self, model, m, z, logdet):
         nll = -1. * (model.prior.log_prob(z) + logdet)
-        m_flat = m[:, 1:].contiguous().view(-1)
+        m_flat = m[:, 1:].repeat(z.shape[0] // (m.shape[0] * (m.shape[1] - 1)), 1).contiguous().view(-1)
         nll = nll * m_flat
         return nll.sum() / m_flat.sum()
 

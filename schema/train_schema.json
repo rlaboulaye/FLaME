@@ -140,6 +140,10 @@
         "distance_metric": {
             "type": "string",
             "description": "The distance metric used to compute distance loss"
+        },
+        "n_negative_sample": {
+            "type": "integer",
+            "description": "The number of negative samples used to estimate the neighborhood nll"
         }
     },
     "properties": {
@@ -247,6 +251,9 @@
         },
         "distance_metric": {
             "$ref": "#/definitions/distance_metric"
+        },
+        "n_negative_sample": {
+            "$ref": "#/definitions/n_negative_sample"
         }
     },
     "required": [
@@ -273,6 +280,7 @@
         "max_sequence_dim",
         "lm_coefficient",
         "distance_coefficient",
-        "distance_metric"
+        "distance_metric",
+        "n_negative_sample"
     ]
 }

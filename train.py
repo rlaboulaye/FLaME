@@ -18,19 +18,26 @@ def no_grad(module):
     for parameter in module.parameters():
         parameter.requires_grad = False
 
-def run_epoch(train_val_dataloaders, model, optimizer, evaluator, verbose):
+def run_model_with_negative_sampling(evaluator, model, x, m, hyperparams):
+    # need to use actual vocab size
+    # need to sample based off of frequency
+    neg_x = torch.randint(0, 40000, (hyperparams['n_negative_sample'],) + x.shape[:-1], device=next(model.parameters()).device)
+    z, logdet, neg_z, neg_logdet, lm_logits = model(x, neg_x)
+    losses = evaluator.compute_flame_loss(model, x, m, z, logdet, neg_z, neg_logdet, lm_logits)
+    return losses
+
+def run_epoch(train_val_dataloaders, model, optimizer, evaluator, hyperparams, verbose):
     epoch_size = hyperparams['epoch_size']
     validation_frequency = hyperparams['validation_frequency']
     train_dataloader, validate_training_dataloader, validate_validation_dataloader = train_val_dataloaders
 
-    train_losses = {'total': [], 'flow_negative_log_likelihood': [], 'language_modeling': [], 'distance': []}
-    validation_losses = {'total': [], 'flow_negative_log_likelihood': [], 'language_modeling': [], 'distance': []}
+    train_losses = {'total': [], 'flow_contrastive_log_likelihood': [], 'language_modeling': [], 'distance': []}
+    validation_losses = {'total': [], 'flow_contrastive_log_likelihood': [], 'language_modeling': [], 'distance': []}
 
     model.train()
     n_updates = 0
     for x, m in get_iterator(train_dataloader, epoch_size, verbose):
-        z, logdet, lm_logits = model(x)
-        loss, _, _, _ = evaluator.compute_flame_loss(model, x, m, z, logdet, lm_logits)
+        loss, _, _, _ = run_model_with_negative_sampling(evaluator, model, x, m, hyperparams)
         if not torch.isnan(loss):
             loss.backward()
             optimizer.step()
@@ -38,13 +45,13 @@ def run_epoch(train_val_dataloaders, model, optimizer, evaluator, verbose):
 
         n_updates += 1
         if n_updates % validation_frequency == 0:
-            train_loss, validation_loss = validate(validate_training_dataloader, validate_validation_dataloader, model)
+            train_loss, validation_loss = validate(validate_training_dataloader, validate_validation_dataloader, model, hyperparams)
             train_losses['total'].append(train_loss[0])
-            train_losses['flow_negative_log_likelihood'].append(train_loss[1])
+            train_losses['flow_contrastive_log_likelihood'].append(train_loss[1])
             train_losses['language_modeling'].append(train_loss[2])
             train_losses['distance'].append(train_loss[3])
             validation_losses['total'].append(validation_loss[0])
-            validation_losses['flow_negative_log_likelihood'].append(validation_loss[1])
+            validation_losses['flow_contrastive_log_likelihood'].append(validation_loss[1])
             validation_losses['language_modeling'].append(validation_loss[2])
             validation_losses['distance'].append(validation_loss[3])
         if n_updates == epoch_size:
@@ -52,15 +59,13 @@ def run_epoch(train_val_dataloaders, model, optimizer, evaluator, verbose):
 
     return train_losses, validation_losses
 
-def validate(validate_training_dataloader, validate_validation_dataloader, model):
+def validate(validate_training_dataloader, validate_validation_dataloader, model, hyperparams):
     with torch.no_grad():
         model.eval()
         x, m = next(iter(validate_training_dataloader))
-        z, logdet, lm_logits = model(x)
-        train_losses = evaluator.compute_flame_loss(model, x, m, z, logdet, lm_logits)
+        train_losses = run_model_with_negative_sampling(evaluator, model, x, m, hyperparams)
         x, m = next(iter(validate_validation_dataloader))
-        z, logdet, lm_logits = model(x)
-        validation_losses = evaluator.compute_flame_loss(model, x, m, z, logdet, lm_logits)
+        validation_losses = run_model_with_negative_sampling(evaluator, model, x, m, hyperparams)
     model.train()
     return [loss.cpu().item() for loss in train_losses], [loss.cpu().item() for loss in validation_losses]
 
@@ -72,7 +77,7 @@ def train(train_val_dataloaders, model, model_opt, hyperparams, evaluator, logge
 
         verbose_print(verbose, 'Running epoch {}'.format(epoch))
 
-        train_losses, validation_losses = run_epoch(train_val_dataloaders, model, model_opt, evaluator, verbose)
+        train_losses, validation_losses = run_epoch(train_val_dataloaders, model, model_opt, evaluator, hyperparams, verbose)
 
         if logger is not None:
             logger.add_train_val_losses(train_losses, validation_losses)
@@ -92,18 +97,17 @@ def train(train_val_dataloaders, model, model_opt, hyperparams, evaluator, logge
         model_path = os.path.join(logger.params_directory, 'FLaME.pth')
         model.load_state_dict(torch.load(model_path))
 
-def test(test_dataloader, model, evaluator, logger):
+def test(test_dataloader, model, evaluator, hyperparams, logger):
     verbose_print(verbose, 'Testing')
 
-    test_losses = {'total': [], 'flow_negative_log_likelihood': [], 'language_modeling': [], 'distance': []}
+    test_losses = {'total': [], 'flow_contrastive_log_likelihood': [], 'language_modeling': [], 'distance': []}
     with torch.no_grad():
         model.eval()
         for x, m in get_iterator(test_dataloader, verbose):
-            z, logdet, lm_logits = model(x)
-            losses = evaluator.compute_flame_loss(model, x, m, z, logdet, lm_logits)
+            losses = run_model_with_negative_sampling(evaluator, model, x, m, hyperparams)
             losses = [[loss.cpu().item()] * x.shape[0] for loss in losses]
             test_losses['total'].extend(losses[0])
-            test_losses['flow_negative_log_likelihood'].extend(losses[1])
+            test_losses['flow_contrastive_log_likelihood'].extend(losses[1])
             test_losses['language_modeling'].extend(losses[2])
             test_losses['distance'].extend(losses[3])
     test_loss = {label: np.mean(test_losses[label]) for label in test_losses}
@@ -121,9 +125,9 @@ if __name__ == '__main__':
     parser.add_argument('--verbose', action='store_true')
     parser.add_argument('--save', action='store_true')
     parser.add_argument('--hyperparams', type=str, default='hyperparams/train.json')
-    parser.add_argument('--data_file', type=str, default='/users/data/toronto_book_corpus/6_to_11_len_books_in_sentences.txt')
+    # parser.add_argument('--data_file', type=str, default='/users/data/toronto_book_corpus/6_to_11_len_books_in_sentences.txt')
     # parser.add_argument('--data_file', type=str, default='/users/data/toronto_book_corpus/abridged_6_to_11_len_books_in_sentences.txt')
-    # parser.add_argument('--data_file', type=str, default='test.txt')
+    parser.add_argument('--data_file', type=str, default='test.txt')
 
     args = parser.parse_args()
 
@@ -183,4 +187,4 @@ if __name__ == '__main__':
         logger = None
 
     train(train_val_dataloaders, model, model_opt, hyperparams, evaluator, logger)
-    test(test_dataloader, model, evaluator, logger)
+    test(test_dataloader, model, evaluator, hyperparams, logger)

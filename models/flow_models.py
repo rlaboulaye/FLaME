@@ -1,4 +1,5 @@
 import numpy as np
+import scipy.linalg
 import torch
 from torch import nn
 from torch.nn import Softmax
@@ -203,25 +204,24 @@ class FLaME(nn.Module):
             n_layers=cfg['n_projection_layer'], final_activation=False)
         self.softmax = Softmax(dim=-1)
         self.prior = MultivariateNormal(torch.zeros(self.embedding_dim), torch.eye(self.embedding_dim))
-        self.register_buffer('i', torch.zeros(1))
-        self.register_buffer('one', torch.ones(1))
 
     def to(self, device):
         super(FLaME, self).to(device)
         self.prior = MultivariateNormal(torch.zeros(self.embedding_dim, device=device), torch.eye(self.embedding_dim, device=device))
 
-    def forward(self, x):
-        x_embd = self.language_model.embed(x[:, :, 0].contiguous()).clone().detach()
+    def forward(self, x, neg_x):
         y = self.language_model(x)
-        shift = torch.max(2e-2 * self.one, -.15 * (.1 * self.i + 1).log() + 1)
-        y += y.sign() * shift
-        x_embd_flat = x_embd[:, 1:].contiguous().view(-1, x_embd.shape[-1])
+        y += y.sign() * 1e-2
         y_flat = y[:, :-1].contiguous().view(-1, y.shape[-1])
+        x_embd = self.language_model.embed(x[:, :, 0].contiguous()).clone().detach()
+        x_embd_flat = x_embd[:, 1:].contiguous().view(-1, x_embd.shape[-1])
         z, logdet = self.conditional_flow(x_embd_flat, y_flat)
+        neg_x_embd = self.language_model.embed(neg_x).clone().detach()
+        neg_x_embd_flat = neg_x_embd[:, :, 1:].contiguous().view(-1, x_embd.shape[-1])
+        neg_y_flat = y_flat.repeat((neg_x_embd.shape[0], 1))
+        neg_z, neg_logdet = self.conditional_flow(neg_x_embd_flat, neg_y_flat)
         lm_logits = self.vocab_projection(x_embd)
-        if self.training:
-            self.i += 1
-        return z, logdet, lm_logits
+        return z, logdet, neg_z, neg_logdet, lm_logits
 
     def generate(self, x, position_token, z=None, max_length=512):
         if z is None:
