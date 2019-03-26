@@ -22,7 +22,7 @@ def encode_sequences(text_encoder, sequences):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--hyperparams', type=str, default='hyperparams/train.json')
-    parser.add_argument('--params', type=str, default='params/flow_lm__6_to_11_len_books_in_sentences_2019-03-21 03:06:17')
+    parser.add_argument('--params', type=str, default='params/flow_lm__abridged_6_to_11_len_books_in_sentences_2019-03-21 21:35:47')
     parser.add_argument('--sequences', type=str, default='i fell down._end_burp highway down._end_')
 
     args = parser.parse_args()
@@ -65,7 +65,7 @@ if __name__ == '__main__':
         z = z.view(batch_size, -1, hyperparams['n_embd'])
         #
         log_probs = model.prior.log_prob(z)
-        print(log_probs[:, -3])
+        print(log_probs)
         #
     #     x_start = np.zeros((z.shape[0],) + (1, 2))
     #     x_start[:, :, 0] = np.array([text_encoder.start_token] * z.shape[0]).reshape(-1, 1)
