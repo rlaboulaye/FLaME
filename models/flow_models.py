@@ -29,6 +29,36 @@ class Permutation(nn.Module):
             logdet -= self.W.transpose(0, 1).slogdet()[1]
         return h, logdet
 
+class EfficientPermutation(nn.Module):
+
+    def __init__(self, embedding_dim):
+        super(EfficientPermutation, self).__init__()
+        W_init = np.linalg.qr(np.random.randn(embedding_dim, embedding_dim))[0].astype(np.float32)
+        P_init, L_init, U_init = scipy.linalg.lu(W_init)
+        S_init = np.diag(U_init)
+        U_init = np.triu(U_init, k=1)
+        self.register_buffer('P', torch.Tensor(P_init))
+        self.register_buffer('P_inv', self.P.inverse())
+        self.L = nn.Parameter(torch.Tensor(L_init))
+        self.S = nn.Parameter(torch.Tensor(S_init))
+        self.U = nn.Parameter(torch.Tensor(U_init))
+        self.register_buffer('identity', torch.eye(embedding_dim))
+
+    def forward(self, h, logdet, reverse=False):
+        L = self.L.tril(-1) + self.identity
+        U = self.U.triu(1) + self.S.diag()
+        if not reverse:
+            W = self.P.matmul(L.matmul(U))
+            h = h.matmul(W)
+            logdet += self.S.abs().log().sum(dim=-1)
+        else:
+            L_inv = L.inverse()
+            U_inv = U.inverse()
+            W_inv = U_inv.matmul(L_inv.matmul(self.P_inv))
+            h = h.matmul(W_inv)
+            logdet -= self.S.abs().log().sum(dim=-1)
+        return h, logdet
+
 
 class ActNorm(nn.Module):
 
@@ -86,8 +116,8 @@ class FlowStep(nn.Module):
         super(FlowStep, self).__init__()
         embedding_dim = cfg['n_embd']
         self.actnorm = ActNorm(embedding_dim)
-        self.permutation = Permutation(embedding_dim)
-        self.f = MLP(embedding_dim // 2, embedding_dim, embedding_dim, cfg['n_f_layer'])
+        self.permutation = EfficientPermutation(embedding_dim)
+        self.f = MLP(embedding_dim // 2 + embedding_dim, embedding_dim, embedding_dim, cfg['n_f_layer'], cfg['resid_pdrop'])
 
     def forward(self, h, logdet, reverse=False):
         if not reverse:
