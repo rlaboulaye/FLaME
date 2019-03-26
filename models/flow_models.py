@@ -120,26 +120,26 @@ class FlowStep(nn.Module):
         self.permutation = EfficientPermutation(embedding_dim)
         self.f = MLP(embedding_dim // 2 + embedding_dim, embedding_dim, embedding_dim, cfg['n_f_layer'], cfg['resid_pdrop'])
 
-    def forward(self, h, logdet, reverse=False):
+    def forward(self, y, h, logdet, reverse=False):
         if not reverse:
-            return self.flow(h, logdet)
+            return self.flow(y, h, logdet)
         else:
-            return self.reverse_flow(h, logdet)
+            return self.reverse_flow(y, h, logdet)
 
-    def flow(self, h, logdet):
+    def flow(self, y, h, logdet):
         h, logdet = self.actnorm(h, logdet=logdet, reverse=False)
         h, logdet = self.permutation(h, logdet=logdet, reverse=False)
         h1, h2 = split(h)
-        shift, scale_raw = split(self.f(h1))
+        shift, scale_raw = split(self.f(torch.cat([h1, y], dim=-1)))
         scale = (scale_raw + 2.).sigmoid()
         h2 = (h2 + shift) * scale
         logdet += scale.log().sum(dim=-1)
         h = torch.cat([h1, h2], dim=-1)
         return h, logdet
 
-    def reverse_flow(self, h, logdet):
+    def reverse_flow(self, y, h, logdet):
         h1, h2 = split(h)
-        shift, scale_raw = split(self.f(h1))
+        shift, scale_raw = split(self.f(torch.cat([h1, y], dim=-1)))
         scale = (scale_raw + 2.).sigmoid()
         h2 = (h2 / scale) - shift
         logdet -= scale.log().sum(dim=-1)
@@ -187,7 +187,8 @@ class ConditionalFlowNet(nn.Module):
         n_post_layer = cfg['n_post_layer']
         self.pre_steps = nn.ModuleList([FlowStep(cfg) for i in range(n_pre_layer)])
         self.post_steps = nn.ModuleList([FlowStep(cfg) for i in range(n_post_layer)])
-        self.log_squash = LogSquash()
+        self.W = nn.Parameter(torch.zeros(embedding_dim, embedding_dim))
+        nn.init.xavier_normal_(self.W)
 
     def forward(self, h, y, reverse=False):
         logdet = torch.zeros(h.shape[0], dtype=torch.float32, device=next(self.parameters()).device)
@@ -198,24 +199,32 @@ class ConditionalFlowNet(nn.Module):
 
     def encode(self, x, y, logdet):
         h = x
-        for step in self.pre_steps:
-            h, logdet = step(h, logdet)
+        h = h.matmul(self.W)
+        logdet += self.W.transpose(0, 1).slogdet()[1]
 
-        h, logdet = self.log_squash(y, h, logdet)
-        
+        for step in self.pre_steps:
+            h, logdet = step(y, h, logdet)
+
+        h = (h / y) - 1
+        logdet -= y.abs().log().sum(dim=-1)
+
         for step in self.post_steps:
-            h, logdet = step(h, logdet)
+            h, logdet = step(y, h, logdet)
         return h, logdet
 
     def decode(self, z, y, logdet):
         h = z
         for step in reversed(self.post_steps):
-            h, logdet = step(h, logdet, reverse=True)
+            h, logdet = step(y, h, logdet, reverse=True)
 
-        h, logdet = self.log_squash(y, h, logdet, reverse=True)
+        h = (h + 1) * y
+        logdet += y.abs().log().sum(dim=-1)
 
         for step in reversed(self.pre_steps):
-            h, logdet = step(h, logdet, reverse=True)
+            h, logdet = step(y, h, logdet, reverse=True)
+
+        h = h.matmul(self.W.inverse())
+        logdet -= self.W.transpose(0, 1).slogdet()[1]
         return h, logdet
 
     def project(self, x):
